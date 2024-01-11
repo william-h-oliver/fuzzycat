@@ -51,18 +51,20 @@ class FuzzyCat:
         files = sorted([file for file in os.listdir(self.directoryName) if file.endswith(".clusters")])
 
         # Create new folder to store similarity matrices
-        similarityMatricesFolder = os.path.join(self.directoryName, "similarity_matrices") 
+        similarityMatricesFolder = os.path.join(self.directoryName, "similarity_matrices")
         if not os.path.exists(similarityMatricesFolder):
             os.makedirs(similarityMatricesFolder)
 
         # Track indices of clusters across different files
         self.fileIndices, self.clusterIndices = [], []
+        total_clusters = 0
 
         # Cycle through all files and compute the pairwise similarity matrix between the clusters in each of them
         for i, file_i in enumerate(files):
             # Load the clusters from file_i
             with open(os.path.join(self.directoryName, file_i), "rb") as loadFile:
                 clusters_i = pickle.load(loadFile)
+            total_clusters += len(clusters_i)
 
             self.fileIndices += [i for _ in range(len(clusters_i))]
             self.clusterIndices += [len(self.clusterIndices) + j for j in range(len(clusters_i))]
@@ -75,7 +77,7 @@ class FuzzyCat:
                 similarityMatrixFile = os.path.join(similarityMatricesFolder, f'similarities_{i}-{j}.npy')
                 if not os.path.exists(similarityMatrixFile):
                     # Load the clusters from file_j
-                    with open(os.path.join(self.directory_name, file_i), "rb") as loadFile:
+                    with open(os.path.join(self.directoryName, file_j), "rb") as loadFile:
                         clusters_j = pickle.load(loadFile)
 
                     # Calculate the similarities between the two clusterings
@@ -86,12 +88,12 @@ class FuzzyCat:
         
         # Convert lists to arrays
         self.fileIndices, self.clusterIndices = np.array(self.fileIndices), np.array(self.clusterIndices)
-        
+
         self._similarityMatrixTime = time.perf_counter() - start
 
     def _calculateSimilarityMatrix(self, clusters_i, clusters_j):
         # Cycle through each cluster in the two clusterings and calculate the similarity between them
-        similarityMatrix = np.empty((len(clusters_i), len(clusters_j)), dtype = np.float32)
+        similarityMatrix = np.empty((len(clusters_i), len(clusters_j)), dtype = np.float64)
         for i, cluster_i in enumerate(clusters_i):
             for j, cluster_j in enumerate(clusters_j):
                 similarityMatrix[i, j] = self._jaccardIndex_njit(cluster_i, cluster_j)
@@ -122,10 +124,10 @@ class FuzzyCat:
             self._printFunction('[Error] Similarity matrices folder does not exist!')
         else:
             # Get all similarity matrices in directory
-            fileNames = sorted([fileName for fileName in os.listdir(similarityMatricesFolder) if fileName.startswith("similarity_") and fileName.endswith(".npy")])
+            fileNames = sorted([fileName for fileName in os.listdir(similarityMatricesFolder) if fileName.startswith("similarities_") and fileName.endswith(".npy")])
 
             # Cycle through all files, load similarity matrix, and order the clusters
-            pairs, edges = np.empty(0, dtype = np.int32), np.empty(0, dtype = np.float64)
+            pairs, edges = np.empty((0, 2), dtype = np.uint32), np.empty(0, dtype = np.float64)
             for fileName in fileNames:
                 # Load similarity matrix
                 similarityMatrixFile = os.path.join(similarityMatricesFolder, fileName)
@@ -138,20 +140,23 @@ class FuzzyCat:
                 pairs, edges = self._newPairs_njit(self.fileIndices, self.clusterIndices, i, j, similarityMatrix, pairs, edges)
 
             # Aggregate clusters
-            self.ordering, self.groups, self.prominences, self.groups_comp, self.prominences_comp = self._aggregate_njit(pairs, edges, self.clusterIndices.size)
+            self.jaccardIndices, self.ordering, self.groups, self.prominences, self.groups_comp, self.prominences_comp = self._aggregate_njit(pairs, edges, self.clusterIndices.size)
             
-            
-
         self._fuzzyClustersTime = time.perf_counter() - start
     
     @staticmethod
-    @njit(fastmath = True)
+    @njit()
     def _newPairs_njit(fileIndices, clusterIndices, i, j, similarityMatrix, pairs, edges):
         clstInd_i = clusterIndices[fileIndices == i]
         clstInd_j = clusterIndices[fileIndices == j]
         pairs_ij = np.where(similarityMatrix > 0)
-        newPairs = np.column_stack((clstInd_i[pairs_ij[0]], clstInd_j[pairs_ij[1]]))
-        newEdges = similarityMatrix[pairs_ij]
+        newPairs = np.empty((pairs_ij[0].size, 2), dtype = np.uint32)
+        newEdges = np.zeros(pairs_ij[0].size, dtype = np.float64)
+        for k, pair in enumerate(np.column_stack(pairs_ij)):
+            p_0, p_1 = pair
+            newPairs[k, 0] = clstInd_i[p_0]
+            newPairs[k, 1] = clstInd_j[p_1]
+            newEdges[k] = similarityMatrix[p_0, p_1]
         return np.concatenate((pairs, newPairs), axis = 0), np.concatenate((edges, newEdges))
 
     @staticmethod
@@ -163,6 +168,7 @@ class FuzzyCat:
 
         # Kruskal's minimum spanning tree + hierarchy tracking
         ids = np.full((n_clusters,), n_clusters, dtype = np.uint32)
+        jaccardIndices = np.empty(n_clusters, dtype = np.float64)
         count = 0
         aggregations = [[np.uint32(0) for i in range(0)] for i in range(0)]
         emptyIntList = [np.uint32(0) for i in range(0)]
@@ -183,6 +189,7 @@ class FuzzyCat:
                 elif id_1 == n_clusters: # pair[1] is not yet aggregated
                     p_1 = pair[1]
                     ids[p_1] = id_0
+                    jaccardIndices[p_1] = edge
                     aggregations[id_0].append(p_1)
                     sizes[id_0] += 1
                 else: # Different groups -> merge groups
@@ -203,6 +210,7 @@ class FuzzyCat:
                     children[id_0].append(id_1)
             elif id_1 == n_clusters: # Neither are aggregated
                 ids[pair] = count
+                jaccardIndices[pair] = edge
                 count += 1
                 aggregations.append([pair[0], pair[1]])
                 # Create group
@@ -217,11 +225,10 @@ class FuzzyCat:
             else: # pair[1] is already aggregated (but not pair[0])
                 p_0 = pair[0]
                 ids[p_0] = id_1
+                jaccardIndices[p_0] = edge
                 aggregations[id_1].append(p_0)
                 sizes[id_1] += 1
                 prominences[id_1] = max(prominences[id_1], edge)
-
-        # Here...............................................................
 
         # Merge separate aggregations in order of decreasing size
         aggArr = np.unique(ids)
@@ -285,7 +292,7 @@ class FuzzyCat:
 
         # Reorder arrays
         reorder = groups[:, 0].argsort()
-        return ordering, groups[reorder], prominences[reorder], groups_comp[reorder], prominences_comp[reorder]
+        return jaccardIndices, ordering, groups[reorder], prominences[reorder], groups_comp[reorder], prominences_comp[reorder]
     
     def fuzzyAssignment(self):
         pass
