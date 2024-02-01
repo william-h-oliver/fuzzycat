@@ -5,10 +5,18 @@ from numba import njit, prange
 import numpy as np
 
 class FuzzyCat:
-    def __init__(self, directoryName, workers = -1, verbose = 1):
+    def __init__(self, directoryName, n_points, minJaccardIndex = 0.0, workers = -1, verbose = 2):
         check_directoryName = isinstance(directoryName, str) and directoryName != "" and os.path.exists(directoryName)
         assert check_directoryName, "Parameter 'directory_name' must be a string and must exist!"
         self.directoryName = directoryName
+
+        check_n_points = isinstance(n_points, int) and n_points > 0
+        assert check_n_points, "Parameter 'n_points' must be a positive integer!"
+        self.n_points = n_points
+
+        check_minJaccardIndex = isinstance(minJaccardIndex, (int, float)) and 0 <= minJaccardIndex <= 1
+        assert check_minJaccardIndex, "Parameter 'minJaccardIndex' must be a float (or integer) in the interval [0, 1]!"
+        self.minJaccardIndex = minJaccardIndex
 
         check_workers = 1 <= workers <= os.cpu_count() or workers == -1
         assert check_workers, f"Parameter 'workers' must be set as either '-1' or needs to be an integer that is >= 1 and <= N_cpu (= {os.cpu_count()})"
@@ -16,32 +24,30 @@ class FuzzyCat:
         self.workers = workers
         self.verbose = verbose
 
-    
     def _printFunction(self, message, returnLine = True):
         if self.verbose:
             if returnLine: print(f"FuzzyCat: {message}\r", end = '')
             else: print(f"FuzzyCat: {message}")
     
     def run(self):
-        self._printFunction(f"Started             | {time.strftime('%Y-%m-%d %H:%M:%S')}", returnLine = False)
+        self._printFunction(f"Started                | {time.strftime('%Y-%m-%d %H:%M:%S')}", returnLine = False)
         begin = time.perf_counter()
 
         # Phase 1
         self.computeSimilarityMatrices()
 
         # Phase 2
-        self.fuzzyClusters()
+        self.aggregate()
 
         # Phase 3
-        self.fuzzyAssignment()
+        self.extractFuzzyClusters()
 
         self._totalTime = time.perf_counter() - begin
         if self.verbose > 1:
             self._printFunction(f"Similarity matrices time | {100*self._similarityMatrixTime/self._totalTime:.2f}%    ", returnLine = False)
-            self._printFunction(f"Scoring clusters time  | {100*self._fuzzyClustersTime/self._totalTime:.2f}%    ", returnLine = False)
-            self._printFunction(f"Fuzzy assignment time  | {100*self._similarityMatrixTime/self._totalTime:.2f}%    ", returnLine = False)
+            self._printFunction(f"Scoring clusters time    | {100*self._fuzzyClustersTime/self._totalTime:.2f}%    ", returnLine = False)
+            self._printFunction(f"Fuzzy assignment time    | {100*self._similarityMatrixTime/self._totalTime:.2f}%    ", returnLine = False)
         self._printFunction(f"Completed              | {time.strftime('%Y-%m-%d %H:%M:%S')}       ", returnLine = False)
-
 
     def computeSimilarityMatrices(self):
         if self.verbose > 1: self._printFunction('Computing similarity matrices...        ')
@@ -57,14 +63,12 @@ class FuzzyCat:
 
         # Track indices of clusters across different files
         self.fileIndices, self.clusterIndices = [], []
-        total_clusters = 0
 
         # Cycle through all files and compute the pairwise similarity matrix between the clusters in each of them
         for i, file_i in enumerate(files):
             # Load the clusters from file_i
             with open(os.path.join(self.directoryName, file_i), "rb") as loadFile:
                 clusters_i = pickle.load(loadFile)
-            total_clusters += len(clusters_i)
 
             self.fileIndices += [i for _ in range(len(clusters_i))]
             self.clusterIndices += [len(self.clusterIndices) + j for j in range(len(clusters_i))]
@@ -115,7 +119,7 @@ class FuzzyCat:
         return intersection/(c1.size + c2.size - intersection)
 
 
-    def fuzzyClusters(self):
+    def aggregate(self):
         if self.verbose > 1: self._printFunction('Making fuzzy clusters...        ')
         start = time.perf_counter()
 
@@ -141,7 +145,6 @@ class FuzzyCat:
 
             # Aggregate clusters
             self.jaccardIndices, self.ordering, self.groups, self.prominences, self.groups_comp, self.prominences_comp = self._aggregate_njit(pairs, edges, self.clusterIndices.size)
-            
         self._fuzzyClustersTime = time.perf_counter() - start
     
     @staticmethod
@@ -293,6 +296,59 @@ class FuzzyCat:
         # Reorder arrays
         reorder = groups[:, 0].argsort()
         return jaccardIndices, ordering, groups[reorder], prominences[reorder], groups_comp[reorder], prominences_comp[reorder]
-    
-    def fuzzyAssignment(self):
-        pass
+
+    def extractFuzzyClusters(self):
+        if self.verbose > 1: self._printFunction('Assigning probabilities...        ')
+        start = time.perf_counter()
+
+        # Extract fuzzy clusters
+        sl = self.prominences > self.minJaccardIndex
+        self.fuzzyGroups = self.groups[sl]
+        sl = np.logical_and(sl, self.prominences_comp > self.minJaccardIndex)
+        fuzzyGroups_comp = self.groups_comp[sl]
+            
+        # Keep only those complementary groups that are the smallest in their cascade
+        sl = np.zeros(fuzzyGroups_comp.shape[0], dtype = np.bool_)
+        cascade_starts_unique = np.unique(fuzzyGroups_comp[:, 0])
+        for cascade_start in cascade_starts_unique:
+            sl[np.where(fuzzyGroups_comp[:, 0] == cascade_start)[0][0]] = 1
+
+        self.fuzzyGroups = np.vstack((self.fuzzyGroups, fuzzyGroups_comp[sl]))
+        reorder = np.array(sorted(np.arange(self.fuzzyGroups.shape[0]), key = lambda i: [self.fuzzyGroups[i, 0], self.clusterIndices.size - self.fuzzyGroups[i, 1]]), dtype = np.uint32)
+        self.fuzzyGroups = self.fuzzyGroups[reorder]
+
+        # Initialise arrays
+        self.pMembership = np.zeros((self.fuzzyGroups.shape[0], self.n_points), dtype = np.float64)
+        whichClusters = [np.sort(self.ordering[self.fuzzyGroups[i, 0]:self.fuzzyGroups[i, 1]]) for i in range(self.fuzzyGroups.shape[0])]
+
+        # Get all files in directory
+        fileNames = sorted([fileName for fileName in os.listdir(self.directoryName) if fileName.endswith(".clusters")])
+
+        # Cycle through all files and compute the fuzzy assignment of each point
+        for i, fileName in enumerate(fileNames):
+            # Load the clusters from file_i
+            with open(os.path.join(self.directoryName, fileName), "rb") as loadFile:
+                clusters_i = pickle.load(loadFile)
+
+            # Adjust membership probabilities for each cluster in fileName
+            self.pMembership = self._updateMembershipProbabilities_njit(self.pMembership, whichClusters, clusters_i, self.clusterIndices[self.fileIndices == i])
+        
+        n_occurrences = self.fuzzyGroups[:, 1] - self.fuzzyGroups[:, 0]
+        self.pMembership /= n_occurrences.reshape(-1, 1)
+        self.pExistence = n_occurrences/len(fileNames)
+        
+        self._fuzzyAssignmentTime = time.perf_counter() - start
+
+    @staticmethod
+    @njit(fastmath = True)
+    def _updateMembershipProbabilities_njit(pMembership, whichClusters, clusters_i, clusterIndices_i):
+        for j in prange(len(whichClusters)):
+            whichClusters_j = whichClusters[j]
+            k, l = 0, 0
+            while k < clusterIndices_i.size and l < whichClusters_j.size:
+                bool_intersec = clusterIndices_i[k] == whichClusters_j[l]
+                pMembership[j, clusters_i[k]] += bool_intersec
+                bool_arrk_smaller = clusterIndices_i[k] < whichClusters_j[l]
+                k += bool_intersec + bool_arrk_smaller
+                l += ~bool_arrk_smaller
+        return pMembership
