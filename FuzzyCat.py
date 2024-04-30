@@ -1,22 +1,30 @@
 import os
-import pickle
 import time
-from numba import njit, prange
+from numba import njit
 import numpy as np
 
 class FuzzyCat:
-    def __init__(self, directoryName, n_points, minJaccardIndex = 0.0, workers = -1, verbose = 2):
+    def __init__(self, directoryName, nPoints, minJaccardIndex = 0.5, minExistenceProbability = 0.5, checkpoint = True, workers = -1, verbose = 2):
         check_directoryName = isinstance(directoryName, str) and directoryName != "" and os.path.exists(directoryName)
-        assert check_directoryName, "Parameter 'directory_name' must be a string and must exist!"
+        assert check_directoryName, "Parameter 'directoryName' must be a string and must exist!"
+        if directoryName[-1] != '/': directoryName += '/'
         self.directoryName = directoryName
 
-        check_n_points = isinstance(n_points, int) and n_points > 0
-        assert check_n_points, "Parameter 'n_points' must be a positive integer!"
-        self.n_points = n_points
+        check_nPoints = isinstance(nPoints, int) and nPoints > 0
+        assert check_nPoints, "Parameter 'nPoints' must be a positive integer!"
+        self.nPoints = nPoints
 
         check_minJaccardIndex = isinstance(minJaccardIndex, (int, float)) and 0 <= minJaccardIndex <= 1
         assert check_minJaccardIndex, "Parameter 'minJaccardIndex' must be a float (or integer) in the interval [0, 1]!"
         self.minJaccardIndex = minJaccardIndex
+
+        check_minExistenceProbability = isinstance(minExistenceProbability, (int, float)) and 0 <= minExistenceProbability <= 1
+        assert check_minExistenceProbability, "Parameter 'minExistenceProbability' must be a float (or integer) in the interval [0, 1]!"
+        self.minExistenceProbability = minExistenceProbability
+
+        check_checkpoint = isinstance(checkpoint, bool)
+        assert check_checkpoint, "Parameter 'checkpoint' must be a boolean!"
+        self.checkpoint = checkpoint
 
         check_workers = 1 <= workers <= os.cpu_count() or workers == -1
         assert check_workers, f"Parameter 'workers' must be set as either '-1' or needs to be an integer that is >= 1 and <= N_cpu (= {os.cpu_count()})"
@@ -24,168 +32,162 @@ class FuzzyCat:
         self.workers = workers
         self.verbose = verbose
 
-    def _printFunction(self, message, returnLine = True):
+    def _printFunction(self, message, returnLine = True, error = False):
         if self.verbose:
             if returnLine: print(f"FuzzyCat: {message}\r", end = '')
             else: print(f"FuzzyCat: {message}")
+        if error: print(f"FuzzyCat: [Error] {message}")
     
     def run(self):
-        self._printFunction(f"Started                | {time.strftime('%Y-%m-%d %H:%M:%S')}", returnLine = False)
-        begin = time.perf_counter()
+        if os.path.exists(self.directoryName + 'Reclusterings/'):
+            self._printFunction(f"Started                          | {time.strftime('%Y-%m-%d %H:%M:%S')}", returnLine = False)
+            begin = time.perf_counter()
 
-        # Phase 1
-        self.computeSimilarityMatrices()
+            # Phase 1
+            self.computeSimilarities()
 
-        # Phase 2
-        self.aggregate()
+            # Phase 2
+            self.aggregate()
 
-        # Phase 3
-        self.extractFuzzyClusters()
+            # Phase 3
+            self.extractFuzzyClusters()
 
-        self._totalTime = time.perf_counter() - begin
-        if self.verbose > 1:
-            self._printFunction(f"Similarity matrices time | {100*self._similarityMatrixTime/self._totalTime:.2f}%    ", returnLine = False)
-            self._printFunction(f"Scoring clusters time    | {100*self._fuzzyClustersTime/self._totalTime:.2f}%    ", returnLine = False)
-            self._printFunction(f"Fuzzy assignment time    | {100*self._similarityMatrixTime/self._totalTime:.2f}%    ", returnLine = False)
-        self._printFunction(f"Completed              | {time.strftime('%Y-%m-%d %H:%M:%S')}       ", returnLine = False)
+            self._totalTime = time.perf_counter() - begin
+            if self.verbose > 1:
+                self._printFunction(f"Similarities time                | {100*self._similarityMatrixTime/self._totalTime:.2f}%    ", returnLine = False)
+                self._printFunction(f"Aggregation time                 | {100*self._aggregationTime/self._totalTime:.2f}%    ", returnLine = False)
+                self._printFunction(f"Fuzzy cluster extraction time    | {100*self._extractFuzzyClustersTime/self._totalTime:.2f}%    ", returnLine = False)
+            self._printFunction(f"Completed                        | {time.strftime('%Y-%m-%d %H:%M:%S')}       ", returnLine = False)
+        else:
+            self._printFunction(f"Directory does not contain any cluster files!", error = True)
 
-    def computeSimilarityMatrices(self):
-        if self.verbose > 1: self._printFunction('Computing similarity matrices...        ')
+    def computeSimilarities(self):
+        if self.verbose > 1: self._printFunction('Computing similarities...        ')
         start = time.perf_counter()
-
-        # Get all files in directory
-        files = sorted([file for file in os.listdir(self.directoryName) if file.endswith(".clusters")])
-
-        # Create new folder to store similarity matrices
-        similarityMatricesFolder = os.path.join(self.directoryName, "similarity_matrices")
-        if not os.path.exists(similarityMatricesFolder):
-            os.makedirs(similarityMatricesFolder)
-
-        # Track indices of clusters across different files
-        self.fileIndices, self.clusterIndices = [], []
-
-        # Cycle through all files and compute the pairwise similarity matrix between the clusters in each of them
-        for i, file_i in enumerate(files):
-            # Load the clusters from file_i
-            with open(os.path.join(self.directoryName, file_i), "rb") as loadFile:
-                clusters_i = pickle.load(loadFile)
-
-            self.fileIndices += [i for _ in range(len(clusters_i))]
-            self.clusterIndices += [len(self.clusterIndices) + j for j in range(len(clusters_i))]
-
-            for j, file_j in enumerate(files[i + 1:]):
-                # Change 'j' according to 'i' 
-                j += i + 1
-
-                # If similarity matrix not already created...
-                similarityMatrixFile = os.path.join(similarityMatricesFolder, f'similarities_{i}-{j}.npy')
-                if not os.path.exists(similarityMatrixFile):
-                    # Load the clusters from file_j
-                    with open(os.path.join(self.directoryName, file_j), "rb") as loadFile:
-                        clusters_j = pickle.load(loadFile)
-
-                    # Calculate the similarities between the two clusterings
-                    similarityMatrix = self._calculateSimilarityMatrix(clusters_i, clusters_j)
-
-                    # Save the similarities
-                    np.save(similarityMatrixFile, similarityMatrix)
         
-        # Convert lists to arrays
-        self.fileIndices, self.clusterIndices = np.array(self.fileIndices), np.array(self.clusterIndices)
+        # Check if arrays have been computed before
+        clstFileNamesFileBool = os.path.exists(self.directoryName + 'clusterFileNames.npy')
+        sampNumsFileBool = os.path.exists(self.directoryName + 'sampleNumbers.npy')
+        clstIDsFileBool = os.path.exists(self.directoryName + 'clusterIDs.npy')
+        pairsFileBool = os.path.exists(self.directoryName + 'pairs.npy')
+        edgesFileBool = os.path.exists(self.directoryName + 'edges.npy')
+        
+        # If so, load them, otherwise, compute them
+        if clstFileNamesFileBool and sampNumsFileBool and clstIDsFileBool and pairsFileBool and edgesFileBool:
+            self.clusterFileNames = np.load(self.directoryName + 'clusterFileNames.npy')
+            self.sampleNumbers = np.load(self.directoryName + 'sampleNumbers.npy')
+            self.clusterIDs = np.load(self.directoryName + 'clusterIDs.npy')
+            self.pairs = np.load(self.directoryName + 'pairs.npy')
+            self.edges = np.load(self.directoryName + 'edges.npy')
+        else:
+            # Get all cluster files in directory
+            self.clusterFileNames = np.array([fileName for fileName in os.listdir(self.directoryName + 'Reclusterings/')])
+
+            # Record some cluster information
+            n = len(self.clusterFileNames)
+            self.sampleNumbers, self.clusterIDs = np.empty(n, dtype = np.uint32), []
+            for i, clstFileName in enumerate(self.clusterFileNames):
+                clusterInfo = clstFileName.split('.')[0].split('_')
+                self.sampleNumbers[i] = np.uint32(clusterInfo[0])
+                self.clusterIDs.append(clusterInfo[1])
+            self.clusterIDs = np.array(self.clusterIDs)
+            
+            # Reorder for faster comparisons
+            reorder = np.argsort(self.clusterIDs)
+            self.clusterFileNames = self.clusterFileNames[reorder]
+            self.sampleNumbers = self.sampleNumbers[reorder]
+            self.clusterIDs = self.clusterIDs[reorder]
+
+            # Cycle through all pairs of clusters and compute their similarity
+            lazyLoad = [False for i in range(n)]
+            self.pairs, self.edges = self._initGraph(n)
+            for i in range(n):
+                for j in range(i + 1, n):
+                    # Load clusters
+                    if lazyLoad[i] is False: lazyLoad[i] = np.load(self.directoryName + 'Reclusterings/' + self.clusterFileNames[i])
+                    if lazyLoad[j] is False: lazyLoad[j] = np.load(self.directoryName + 'Reclusterings/' + self.clusterFileNames[j])
+
+                    # Calculate the similarity between clusters i and j
+                    if issubclass(lazyLoad[i].dtype.type, np.integer) and issubclass(lazyLoad[j].dtype.type, np.integer):
+                        self.edges[i*(2*n - i - 1)//2 + j - i - 1] = self._jaccardIndex_njit(lazyLoad[i], lazyLoad[j], self.nPoints)
+                    elif issubclass(lazyLoad[i].dtype.type, np.floating) and issubclass(lazyLoad[j].dtype.type, np.floating):
+                        self.edges[i*(2*n - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(lazyLoad[i], lazyLoad[j])
+                    else:
+                        self._printFunction('Clusters from the following files contain different data types!', error = True)
+                        print(f"{self.directoryName}Reclusterings/{self.clusterFileNames[i]}")
+                        print(f"{self.directoryName}Reclusterings/{self.clusterFileNames[j]}")
+                        return
+                lazyLoad[i] = False
+
+            # Save arrays
+            if self.checkpoint:
+                np.save(self.directoryName + 'clusterFileNames.npy', self.clusterFileNames)
+                np.save(self.directoryName + 'sampleNumbers.npy', self.sampleNumbers)
+                np.save(self.directoryName + 'clusterIDs.npy', self.clusterIDs)
+                np.save(self.directoryName + 'pairs.npy', self.pairs)
+                np.save(self.directoryName + 'edges.npy', self.edges)
 
         self._similarityMatrixTime = time.perf_counter() - start
+    
+    @staticmethod
+    @njit()
+    def _initGraph(n):
+        graphSize = n*(n - 1)//2
+        pairs = np.empty((graphSize, 2), dtype = np.uint32) # Might not need to compute this if i and j can be (efficiently) calculated from knowing the index of [i, j]
+        for i in range(n):
+            for j in range(i + 1, n):
+                pairs[i*(2*n - i - 1)//2 + j - i - 1] = [i, j]
+        edges = np.zeros(graphSize, dtype = np.float32)
+        return pairs, edges
 
-    def _calculateSimilarityMatrix(self, clusters_i, clusters_j):
-        # Cycle through each cluster in the two clusterings and calculate the similarity between them
-        similarityMatrix = np.empty((len(clusters_i), len(clusters_j)), dtype = np.float64)
-        for i, cluster_i in enumerate(clusters_i):
-            for j, cluster_j in enumerate(clusters_j):
-                similarityMatrix[i, j] = self._jaccardIndex_njit(cluster_i, cluster_j)
-        return similarityMatrix
+    @staticmethod
+    @njit(fastmath = True)
+    def _jaccardIndex_njit(c1, c2, nPoints):
+        counts_c1 = np.zeros(nPoints, dtype = np.bool_)
+        counts_c1[c1] = 1
+        intersection = counts_c1[c2].sum()
+        return intersection/(c1.size + c2.size - intersection)
     
     @staticmethod
     @njit(fastmath = True)
-    def _jaccardIndex_njit(c1, c2):
-        c1_sorted = np.sort(c1)
-        c2_sorted = np.sort(c2)
-        intersection = 0
-        i, j = 0, 0
-        while i < c1.size and j < c2.size:
-            bool_intersec = c1_sorted[i] == c2_sorted[j]
-            intersection += bool_intersec
-            bool_c1_smaller = c1_sorted[i] < c2_sorted[j]
-            i += bool_intersec + bool_c1_smaller
-            j += ~bool_c1_smaller
-        return intersection/(c1.size + c2.size - intersection)
-
+    def _weightedJaccardIndex_njit(c1, c2):
+        return np.minimum(c1, c2).sum()/np.maximum(c1, c2).sum()
 
     def aggregate(self):
         if self.verbose > 1: self._printFunction('Making fuzzy clusters...        ')
         start = time.perf_counter()
-
-        similarityMatricesFolder = os.path.join(self.directoryName, "similarity_matrices") 
-        if not os.path.exists(similarityMatricesFolder):
-            self._printFunction('[Error] Similarity matrices folder does not exist!')
-        else:
-            # Get all similarity matrices in directory
-            fileNames = sorted([fileName for fileName in os.listdir(similarityMatricesFolder) if fileName.startswith("similarities_") and fileName.endswith(".npy")])
-
-            # Cycle through all files, load similarity matrix, and order the clusters
-            pairs, edges = np.empty((0, 2), dtype = np.uint32), np.empty(0, dtype = np.float64)
-            for fileName in fileNames:
-                # Load similarity matrix
-                similarityMatrixFile = os.path.join(similarityMatricesFolder, fileName)
-                similarityMatrix = np.load(similarityMatrixFile)
-
-                # Retrieve original file numbers
-                i, j = map(int, fileName.split("_")[1].split(".")[0].split("-"))
-
-                # Add new pairs and edges
-                pairs, edges = self._newPairs_njit(self.fileIndices, self.clusterIndices, i, j, similarityMatrix, pairs, edges)
-
-            # Aggregate clusters
-            self.jaccardIndices, self.ordering, self.groups, self.prominences, self.groups_comp, self.prominences_comp = self._aggregate_njit(pairs, edges, self.clusterIndices.size)
-        self._fuzzyClustersTime = time.perf_counter() - start
-    
-    @staticmethod
-    @njit()
-    def _newPairs_njit(fileIndices, clusterIndices, i, j, similarityMatrix, pairs, edges):
-        clstInd_i = clusterIndices[fileIndices == i]
-        clstInd_j = clusterIndices[fileIndices == j]
-        pairs_ij = np.where(similarityMatrix > 0)
-        newPairs = np.empty((pairs_ij[0].size, 2), dtype = np.uint32)
-        newEdges = np.zeros(pairs_ij[0].size, dtype = np.float64)
-        for k, pair in enumerate(np.column_stack(pairs_ij)):
-            p_0, p_1 = pair
-            newPairs[k, 0] = clstInd_i[p_0]
-            newPairs[k, 1] = clstInd_j[p_1]
-            newEdges[k] = similarityMatrix[p_0, p_1]
-        return np.concatenate((pairs, newPairs), axis = 0), np.concatenate((edges, newEdges))
+        self.jaccardIndices, self.ordering, self.groups, self.prominences, self.pExistence_groups = self._aggregate_njit(self.pairs, self.edges, self.sampleNumbers)
+        del self.pairs, self.edges
+        reorder = np.array(sorted(np.arange(self.groups.shape[0]), key = lambda i: [self.groups[i, 0], self.sampleNumbers.size - self.groups[i, 1]]), dtype = np.uint32)
+        self.groups, self.prominences, self.pExistence_groups = self.groups[reorder], self.prominences[reorder], self.pExistence_groups[reorder]
+        self._aggregationTime = time.perf_counter() - start
 
     @staticmethod
     @njit(fastmath = True, parallel = True)
-    def _aggregate_njit(pairs, edges, n_clusters):
+    def _aggregate_njit(pairs, edges, sampleNumbers):
         sortInd = np.argsort(edges)[::-1]
         pairs = pairs[sortInd]
         edges = edges[sortInd]
 
         # Kruskal's minimum spanning tree + hierarchy tracking
+        n_clusters = sampleNumbers.size
         ids = np.full((n_clusters,), n_clusters, dtype = np.uint32)
-        jaccardIndices = np.empty(n_clusters, dtype = np.float64)
+        jaccardIndices = np.empty(n_clusters, dtype = np.float32)
         count = 0
         aggregations = [[np.uint32(0) for i in range(0)] for i in range(0)]
         emptyIntList = [np.uint32(0) for i in range(0)]
-        # For subgroups
-        starts = [np.uint32(0) for i in range(0)]
-        sizes = [np.uint32(0) for i in range(0)]
-        prominences = [np.float64(0.0) for i in range(0)]
+        # For smaller groups
+        starts_leq = [np.uint32(0) for i in range(0)]
+        sizes_leq = [np.uint32(0) for i in range(0)]
+        prominences_leq = [np.float32(0.0) for i in range(0)]
         children = [[np.uint32(0) for i in range(0)] for i in range(0)]
-        # For complementary groups
-        starts_comp = [np.uint32(0) for i in range(0)]
-        sizes_comp = [np.uint32(0) for i in range(0)]
-        prominences_comp = [np.float64(0.0) for i in range(0)]
+        # For larger groups
+        starts_geq = [np.uint32(0) for i in range(0)]
+        sizes_geq = [np.uint32(0) for i in range(0)]
+        prominences_geq = [np.float32(0.0) for i in range(0)]
 
         for pair, edge in zip(pairs, edges):
+            if edge == 0.0: break
             id_0, id_1 = ids[pair]
             if id_0 != n_clusters: # pair[0] is already aggregated
                 if id_0 == id_1: pass # Same group
@@ -194,22 +196,21 @@ class FuzzyCat:
                     ids[p_1] = id_0
                     jaccardIndices[p_1] = edge
                     aggregations[id_0].append(p_1)
-                    sizes[id_0] += 1
+                    sizes_leq[id_0] += 1
                 else: # Different groups -> merge groups
-                    if sizes[id_0] < sizes[id_1]: id_0, id_1 = id_1, id_0
+                    if sizes_leq[id_0] < sizes_leq[id_1]: id_0, id_1 = id_1, id_0
                     for id_i in aggregations[id_1]: ids[id_i] = id_0
                     aggregations[id_0].extend(aggregations[id_1])
                     aggregations[id_1] = emptyIntList
-                    currLogRho = edge
                     # Track complementary group
-                    starts_comp[id_1] = starts[id_0]
-                    sizes_comp[id_1] = sizes[id_0]
-                    prominences_comp[id_1] = prominences[id_0] - currLogRho
+                    starts_geq[id_1] = starts_leq[id_0]
+                    sizes_geq[id_1] = sizes_leq[id_0]
+                    prominences_geq[id_1] = prominences_leq[id_0] - edge
                     # Merge
-                    starts[id_1] += sizes[id_0]
-                    sizes[id_0] += sizes[id_1]
-                    prominences[id_0] = max(prominences[id_0], prominences[id_1])
-                    prominences[id_1] -= currLogRho
+                    starts_leq[id_1] += sizes_leq[id_0]
+                    sizes_leq[id_0] += sizes_leq[id_1]
+                    prominences_leq[id_0] = max(prominences_leq[id_0], prominences_leq[id_1])
+                    prominences_leq[id_1] -= edge
                     children[id_0].append(id_1)
             elif id_1 == n_clusters: # Neither are aggregated
                 ids[pair] = count
@@ -217,138 +218,128 @@ class FuzzyCat:
                 count += 1
                 aggregations.append([pair[0], pair[1]])
                 # Create group
-                starts.append(0)
-                sizes.append(2)
-                prominences.append(edge)
+                starts_leq.append(0)
+                sizes_leq.append(2)
+                prominences_leq.append(edge)
                 children.append([np.uint32(0) for i in range(0)])
                 # Track complementary group
-                starts_comp.append(0)
-                sizes_comp.append(0)
-                prominences_comp.append(0.0)
+                starts_geq.append(0)
+                sizes_geq.append(0)
+                prominences_geq.append(0.0)
             else: # pair[1] is already aggregated (but not pair[0])
                 p_0 = pair[0]
                 ids[p_0] = id_1
                 jaccardIndices[p_0] = edge
                 aggregations[id_1].append(p_0)
-                sizes[id_1] += 1
-                prominences[id_1] = max(prominences[id_1], edge)
+                sizes_leq[id_1] += 1
+                prominences_leq[id_1] = max(prominences_leq[id_1], edge)
 
         # Merge separate aggregations in order of decreasing size
         aggArr = np.unique(ids)
-        if aggArr.size == 1: id_0 = aggArr[0]
+        if aggArr.size == 1: id_final = aggArr[0]
         else: # If points were not all aggregated together, make it so.
-            sortedAggregations = sorted(zip([sizes[id_i] for id_i in aggArr], aggArr))
-            _, id_0 = sortedAggregations[-1]
-            for size_i, id_i in sortedAggregations[-2::-1]:
-                aggregations[id_0].extend(aggregations[id_i])
-                aggregations[id_i] = emptyIntList
-                # Track complementary group
-                starts_comp[id_i] = starts[id_0]
-                sizes_comp[id_i] = sizes[id_0]
-                prominences_comp[id_i] = prominences[id_0]
+            sortedAggregations = sorted(zip([sizes_leq[id_i] for id_i in aggArr], aggArr))
+            _, id_final = sortedAggregations[-1]
+            for size_leq, id_leq in sortedAggregations[-2::-1]:
+                aggregations[id_final].extend(aggregations[id_leq])
+                aggregations[id_leq] = emptyIntList
+                # Track larger group
+                starts_geq[id_leq] = starts_leq[id_final]
+                sizes_geq[id_leq] = sizes_leq[id_final]
+                prominences_geq[id_leq] = prominences_leq[id_final]
                 # Merge
-                starts[id_i] += sizes[id_0]
-                sizes[id_0] += size_i
-                children[id_0].append(id_i)
+                starts_leq[id_leq] += sizes_leq[id_final]
+                sizes_leq[id_final] += size_leq
+                children[id_final].append(id_leq)
         emptyIntArr = np.empty(0, dtype = np.uint32)
         ids = emptyIntArr
         aggArr = emptyIntArr
 
         # Ordered list
-        ordering = np.array(aggregations[id_0], dtype = np.uint32)
-        aggregations[id_0] = emptyIntList
+        ordering = np.array(aggregations[id_final], dtype = np.uint32)
+        aggregations[id_final] = emptyIntList
 
         # Finalise groups and correct for noise
-        activeGroups = [id_i for id_i in children[id_0]]
+        activeGroups = [id_final]
         while activeGroups:
-            id_i = activeGroups.pop()
-            childIDs = children[id_i]
+            id_leq = activeGroups.pop()
+            childIDs = children[id_leq]
             if childIDs:
-                startAdjust = starts[id_i]
+                startAdjust = starts_leq[id_leq]
                 activeGroups.extend(childIDs)
                 noise = 0.0
-                for id_j, childID in enumerate(childIDs):
-                    starts[childID] += startAdjust
-                    starts_comp[childID] += startAdjust
-                    if id_j > 0: prominences_comp[childID] -= np.sqrt(noise/id_j)
-                    noise += prominences[childID]**2
-                prominences[id_i] -= np.sqrt(noise/(id_j + 1))
-                children[id_i] = emptyIntList
+                for id_geq, childID in enumerate(childIDs):
+                    starts_leq[childID] += startAdjust
+                    starts_geq[childID] += startAdjust
+                    if id_geq > 0: prominences_geq[childID] -= np.sqrt(noise/id_geq)
+                    noise += prominences_leq[childID]**2
+                prominences_leq[id_leq] -= np.sqrt(noise/(id_geq + 1))
+                children[id_leq] = emptyIntList
 
         # Lists to Arrays
-        starts = np.array(starts, dtype = np.uint32)
-        sizes = np.array(sizes, dtype = np.uint32)
-        prominences = np.array(prominences, dtype = np.float64)
-        starts_comp = np.array(starts_comp, dtype = np.uint32)
-        sizes_comp = np.array(sizes_comp, dtype = np.uint32)
-        prominences_comp = np.array(prominences_comp, dtype = np.float64)
+        starts_leq = np.array(starts_leq, dtype = np.uint32)
+        sizes_leq = np.array(sizes_leq, dtype = np.uint32)
+        prominences_leq = np.array(prominences_leq, dtype = np.float32)
+        starts_geq = np.array(starts_geq, dtype = np.uint32)
+        sizes_geq = np.array(sizes_geq, dtype = np.uint32)
+        prominences_geq = np.array(prominences_geq, dtype = np.float32)
 
-        # Clean arrays
-        starts = np.delete(starts, id_0)
-        groups = np.column_stack((starts, starts + np.delete(sizes, id_0)))
-        starts, sizes = emptyIntArr, emptyIntArr
-        prominences = np.delete(prominences, id_0)
-        starts_comp = np.delete(starts_comp, id_0)
-        groups_comp = np.column_stack((starts_comp, starts_comp + np.delete(sizes_comp, id_0)))
-        starts_comp, sizes_comp = emptyIntArr, emptyIntArr
-        prominences_comp = np.delete(prominences_comp, id_0)
+        # Clean and reorder arrays
+        starts_leq = np.delete(starts_leq, id_final)
+        groups_leq = np.column_stack((starts_leq, starts_leq + np.delete(sizes_leq, id_final)))
+        starts_leq, sizes_leq = emptyIntArr, emptyIntArr
+        prominences_leq = np.delete(prominences_leq, id_final)
+        starts_geq = np.delete(starts_geq, id_final)
+        groups_geq = np.column_stack((starts_geq, starts_geq + np.delete(sizes_geq, id_final)))
+        starts_geq, sizes_geq = emptyIntArr, emptyIntArr
+        prominences_geq = np.delete(prominences_geq, id_final)
 
-        # Reorder arrays
-        reorder = groups[:, 0].argsort()
-        return jaccardIndices, ordering, groups[reorder], prominences[reorder], groups_comp[reorder], prominences_comp[reorder]
+        # Combine arrays
+        groups = np.vstack((groups_leq, groups_geq))
+        prominences = np.concatenate((prominences_leq, prominences_geq))
+
+        # Calculate existence probabilities
+        pExistence_groups = np.empty(groups.shape[0], dtype = np.float32)
+        for i, g in enumerate(groups):
+            pExistence_groups[i] = np.unique(sampleNumbers[ordering[g[0]:g[1]]]).size
+        pExistence_groups /= np.unique(sampleNumbers).size
+
+        return jaccardIndices, ordering, groups, prominences, pExistence_groups
 
     def extractFuzzyClusters(self):
         if self.verbose > 1: self._printFunction('Assigning probabilities...        ')
         start = time.perf_counter()
 
         # Extract fuzzy clusters
-        sl = self.prominences > self.minJaccardIndex
-        self.fuzzyGroups = self.groups[sl]
-        sl = np.logical_and(sl, self.prominences_comp > self.minJaccardIndex)
-        fuzzyGroups_comp = self.groups_comp[sl]
-            
-        # Keep only those complementary groups that are the smallest in their cascade
-        sl = np.zeros(fuzzyGroups_comp.shape[0], dtype = np.bool_)
-        cascade_starts_unique = np.unique(fuzzyGroups_comp[:, 0])
-        for cascade_start in cascade_starts_unique:
-            sl[np.where(fuzzyGroups_comp[:, 0] == cascade_start)[0][0]] = 1
-
-        self.fuzzyGroups = np.vstack((self.fuzzyGroups, fuzzyGroups_comp[sl]))
-        reorder = np.array(sorted(np.arange(self.fuzzyGroups.shape[0]), key = lambda i: [self.fuzzyGroups[i, 0], self.clusterIndices.size - self.fuzzyGroups[i, 1]]), dtype = np.uint32)
-        self.fuzzyGroups = self.fuzzyGroups[reorder]
-
-        # Initialise arrays
-        self.pMembership = np.zeros((self.fuzzyGroups.shape[0], self.n_points), dtype = np.float64)
-        whichClusters = [np.sort(self.ordering[self.fuzzyGroups[i, 0]:self.fuzzyGroups[i, 1]]) for i in range(self.fuzzyGroups.shape[0])]
-
-        # Get all files in directory
-        fileNames = sorted([fileName for fileName in os.listdir(self.directoryName) if fileName.endswith(".clusters")])
-
-        # Cycle through all files and compute the fuzzy assignment of each point
-        for i, fileName in enumerate(fileNames):
-            # Load the clusters from file_i
-            with open(os.path.join(self.directoryName, fileName), "rb") as loadFile:
-                clusters_i = pickle.load(loadFile)
-
-            # Adjust membership probabilities for each cluster in fileName
-            self.pMembership = self._updateMembershipProbabilities_njit(self.pMembership, whichClusters, clusters_i, self.clusterIndices[self.fileIndices == i])
+        self.fuzzyGroups, self.pExistence = self._extractFuzzyClusters_njit(self.groups, self.prominences, self.pExistence_groups, self.minJaccardIndex, self.minExistenceProbability)
         
-        n_occurrences = self.fuzzyGroups[:, 1] - self.fuzzyGroups[:, 0]
-        self.pMembership /= n_occurrences.reshape(-1, 1)
-        self.pExistence = n_occurrences/len(fileNames)
+        # Cycle through all clusters and adjust membership probabilities of each point
+        self.pMembership = np.zeros((self.fuzzyGroups.shape[0], self.nPoints))
+        if self.fuzzyGroups.size:
+            for i, clstFileName_i in enumerate(self.clusterFileNames):
+                cluster_i = np.load(self.directoryName + 'Reclusterings/' + clstFileName_i)
+                self._pMembershipUpdate_njit(self.fuzzyGroups, self.ordering, self.pMembership, cluster_i, i)
+            self.pMembership /= (self.fuzzyGroups[:, 1] - self.fuzzyGroups[:, 0]).reshape(-1, 1)
         
-        self._fuzzyAssignmentTime = time.perf_counter() - start
-
+        self._extractFuzzyClustersTime = time.perf_counter() - start
+    
     @staticmethod
-    @njit(fastmath = True)
-    def _updateMembershipProbabilities_njit(pMembership, whichClusters, clusters_i, clusterIndices_i):
-        for j in prange(len(whichClusters)):
-            whichClusters_j = whichClusters[j]
-            k, l = 0, 0
-            while k < clusterIndices_i.size and l < whichClusters_j.size:
-                bool_intersec = clusterIndices_i[k] == whichClusters_j[l]
-                pMembership[j, clusters_i[k]] += bool_intersec
-                bool_arrk_smaller = clusterIndices_i[k] < whichClusters_j[l]
-                k += bool_intersec + bool_arrk_smaller
-                l += ~bool_arrk_smaller
-        return pMembership
+    @njit()
+    def _extractFuzzyClusters_njit(groups, prominences, pExistence_groups, minJaccardIndex, minExistenceProbability):
+        sl = np.logical_and(prominences > minJaccardIndex, pExistence_groups > minExistenceProbability)
+        fuzzyGroups = groups[sl]
+        pExistence = pExistence_groups[sl]
+            
+        # Keep only those groups that are the smallest in their cascade
+        sl = np.zeros(fuzzyGroups.shape[0], dtype = np.bool_)
+        cascade_starts_unique = np.unique(fuzzyGroups[:, 0])
+        for cascade_start in cascade_starts_unique:
+            sl[np.where(fuzzyGroups[:, 0] == cascade_start)[0][-1]] = 1
+        return fuzzyGroups[sl], pExistence[sl]
+    
+    @staticmethod
+    @njit()
+    def _pMembershipUpdate_njit(fuzzyGroups, ordering, pMembership, cluster_i, i):
+        for j, fuzGrp in enumerate(fuzzyGroups):
+            overlapBool = i in ordering[fuzGrp[0]:fuzGrp[1]]
+            if overlapBool: pMembership[j, cluster_i] += 1
