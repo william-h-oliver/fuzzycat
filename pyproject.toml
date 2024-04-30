@@ -1,0 +1,60 @@
+# This section describes the requirements of the build/installation
+# process itself. Being able to do this was the original reason to
+# introduce pyproject.toml
+[build-system]
+requires = [
+    "setuptools >=61",
+]
+build-backend = "setuptools.build_meta"
+
+# This section provides general project metadata that is used across
+# a variety of build tools. Notably, the version specified here is the
+# single source of truth for fuzzycat's version
+[project]
+name = "fuzzycat"
+description = "Add short description here"
+readme = "README.md"
+maintainers = [
+    { name = "William Oliver", email = "your@email.com" },
+]
+version = "0.0.1"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+]
+
+[project.optional-dependencies]
+tests = [
+    "pytest",
+    "pytest-cov",
+    "nbval",
+]
+docs = [
+    "ipykernel",
+    "nbsphinx",
+    "nbsphinx-link",
+    "sphinx",
+    "sphinx_mdinclude",
+    "sphinx_rtd_theme",
+]
+
+
+# The following section contains setuptools-specific configuration
+# options. For a full reference of available options, check the overview
+# at https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
+[tool.setuptools]
+packages = [
+    "fuzzycat",
+]
+
+# The following is the configuration for the pytest test suite
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
+    "notebooks",
+]
