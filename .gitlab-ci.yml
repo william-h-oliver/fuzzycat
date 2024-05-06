@@ -3,14 +3,14 @@
     - python -m pip install .[tests]
     - python -m pytest --nbval
 
-test-fuzzycat-python3.8:
+test-fuzzy_cat-python3.8:
   image: python:3.8
   <<: *template
 
-test-fuzzycat-python3.9:
+test-fuzzy_cat-python3.9:
   image: python:3.9
   <<: *template
 
-test-fuzzycat-python3.10:
+test-fuzzy_cat-python3.10:
   image: python:3.10
   <<: *template

@@ -1,9 +1,10 @@
-User API
-========
+API Reference
+=============
 
-.. toctree::
+All functionality comes from the FuzzyCat class.
 
-This is an example function:
+FuzzyCat
+---------
 
-.. automodule:: fuzzycat
-    :members:
+.. autoclass:: fuzzy_cat.fuzzy_cat.FuzzyCat
+   :members:

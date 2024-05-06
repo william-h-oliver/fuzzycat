@@ -9,15 +9,15 @@ build-backend = "setuptools.build_meta"
 
 # This section provides general project metadata that is used across
 # a variety of build tools. Notably, the version specified here is the
-# single source of truth for fuzzycat's version
+# single source of truth for fuzzy_cat's version
 [project]
-name = "fuzzycat"
-description = "Add short description here"
+name = "fuzzy_cat"
+description = "A generalised method of producing fuzzy clusters from a series of hard clusters that present differently to one another due to some underlying process(es)."
 readme = "README.md"
 maintainers = [
-    { name = "William Oliver", email = "your@email.com" },
+    { name = "William Oliver", email = "william.hardie.oliver@gmail.com" },
 ]
-version = "0.0.1"
+dynamic = ["version"]
 requires-python = ">=3.8"
 license = { text = "MIT" }
 classifiers = [
@@ -26,6 +26,8 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
+    "numpy",
+    "numba",
 ]
 
 [project.optional-dependencies]
@@ -49,7 +51,7 @@ docs = [
 # at https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
 [tool.setuptools]
 packages = [
-    "fuzzycat",
+    "fuzzy_cat",
 ]
 
 # The following is the configuration for the pytest test suite

@@ -7,7 +7,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'fuzzycat'
+project = 'fuzzy_cat'
 copyright = '2024, William Oliver'
 author = 'William Oliver'
 

@@ -1,7 +1,7 @@
 import os
 import time
-from numba import njit
 import numpy as np
+from numba import njit
 
 class FuzzyCat:
     def __init__(self, directoryName, nPoints, minJaccardIndex = 0.5, minExistenceProbability = 0.5, checkpoint = True, workers = -1, verbose = 2):

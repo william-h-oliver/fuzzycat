@@ -1,5 +1,6 @@
-import fuzzycat
+import numpy as np
+from fuzzy_cat import FuzzyCat
 
 
 def test_fuzzycat():
-    assert fuzzycat.add_one(1) == 2
+    pass

@@ -1,4 +1,4 @@
-fuzzycat
+FuzzyCat
 ========
 
 .. toctree::
