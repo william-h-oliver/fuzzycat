@@ -9,9 +9,9 @@ build-backend = "setuptools.build_meta"
 
 # This section provides general project metadata that is used across
 # a variety of build tools. Notably, the version specified here is the
-# single source of truth for fuzzy_cat's version
+# single source of truth for fuzzycat's version
 [project]
-name = "fuzzy_cat"
+name = "fuzzycat"
 description = "A generalised method of producing fuzzy clusters from a series of hard clusters that present differently to one another due to some underlying process(es)."
 readme = "README.md"
 maintainers = [
@@ -51,7 +51,7 @@ docs = [
 # at https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
 [tool.setuptools]
 packages = [
-    "fuzzy_cat",
+    "fuzzycat",
 ]
 
 # The following is the configuration for the pytest test suite

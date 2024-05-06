@@ -1,10 +1,10 @@
 This is an explanation of the file structure that the cookiecutter generated for you:
 
 * Python source files:
-  * The Python package source files are located in the `fuzzy_cat` directory.
+  * The Python package source files are located in the `fuzzycat` directory.
   * `tests/test_fuzzycat.py` contains the unit tests for the package.
   * `tests/conftest.py` contains testing setup and configuration for `pytest`
-  * The `notebooks` directory contains an example Jupyter notebook on how to use `fuzzy_cat`.
+  * The `notebooks` directory contains an example Jupyter notebook on how to use `fuzzycat`.
     This notebook is always executed during `pytest` execution and it is automatically
     rendered into the Sphinx documentation.
 * Markdown files with meta information on the project. [Markdown](https://www.markdownguide.org/basic-syntax/) is

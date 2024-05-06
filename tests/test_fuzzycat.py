@@ -1,5 +1,5 @@
 import numpy as np
-from fuzzy_cat import FuzzyCat
+from fuzzycat import FuzzyCat
 
 
 def test_fuzzycat():

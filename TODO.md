@@ -7,7 +7,7 @@ The following tasks need to be done to get a fully working project:
   and add a "new pending publisher". The relevant information is:
   * PyPI project name: `fuzzy-cat`
   * Owner: `william-h-oliver`
-  * Repository name: `fuzzy_cat`
+  * Repository name: `fuzzycat`
   * Workflow name: `pypi.yml`
   * Environment name: not required
 * Enable the integration of Readthedocs with your Git hoster. In the case of Github, this means
