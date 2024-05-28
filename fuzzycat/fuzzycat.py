@@ -4,11 +4,15 @@ import numpy as np
 from numba import njit
 
 class FuzzyCat:
-    def __init__(self, directoryName, nPoints, minJaccardIndex = 0.5, minStability = 0.5, checkpoint = False, workers = -1, verbose = 2):
+    def __init__(self, directoryName, nSamples, nPoints, minJaccardIndex = 0.5, minStability = 0.5, checkpoint = False, workers = -1, verbose = 2):
         check_directoryName = isinstance(directoryName, str) and directoryName != "" and os.path.exists(directoryName)
         assert check_directoryName, "Parameter 'directoryName' must be a string and must exist!"
         if directoryName[-1] != '/': directoryName += '/'
         self.directoryName = directoryName
+
+        check_nSamples = issubclass(type(nSamples), (int, np.integer)) and nSamples > 0
+        assert check_nSamples, "Parameter 'nSamples' must be a positive integer!"
+        self.nSamples = nSamples
 
         check_nPoints = issubclass(type(nPoints), (int, np.integer)) and nPoints > 0
         assert check_nPoints, "Parameter 'nPoints' must be a positive integer!"
@@ -134,8 +138,7 @@ class FuzzyCat:
         if self.verbose > 1: self._printFunction('Making fuzzy clusters...        ')
         start = time.perf_counter()
         self._sampleNumbers = np.array([np.uint32(splitFileName[0]) for splitFileName in np.char.split(self.clusterFileNames, '_', 1)])
-        self.n_samples = np.unique(self._sampleNumbers).size
-        self.jaccardIndices, self.ordering, self.groups, self.prominences, self.stabilitiesGroups = self._aggregate_njit(self.pairs, self.edges, self._sampleNumbers, self.n_samples)
+        self.jaccardIndices, self.ordering, self.groups, self.prominences, self.stabilitiesGroups = self._aggregate_njit(self.pairs, self.edges, self._sampleNumbers, self.nSamples)
         del self.pairs, self.edges
         reorder = np.array(sorted(np.arange(self.groups.shape[0]), key = lambda i: [self.groups[i, 0], self.clusterFileNames.size - self.groups[i, 1]]), dtype = np.uint32)
         self.groups, self.prominences, self.stabilitiesGroups = self.groups[reorder], self.prominences[reorder], self.stabilitiesGroups[reorder]
@@ -143,7 +146,7 @@ class FuzzyCat:
 
     @staticmethod
     @njit(fastmath = True, parallel = True)
-    def _aggregate_njit(pairs, edges, sampleNumbers, n_samples):
+    def _aggregate_njit(pairs, edges, sampleNumbers, nSamples):
         sortInd = np.argsort(edges)[::-1]
         pairs = pairs[sortInd]
         edges = edges[sortInd]
@@ -281,7 +284,7 @@ class FuzzyCat:
         stabilitiesGroups = np.empty(groups.shape[0], dtype = np.int32)
         for i, g in enumerate(groups):
             stabilitiesGroups[i] = np.unique(sampleNumbers[ordering[g[0]:g[1]]]).size
-        stabilitiesGroups = stabilitiesGroups.astype(np.float64)/n_samples
+        stabilitiesGroups = stabilitiesGroups.astype(np.float64)/nSamples
 
         return jaccardIndices, ordering, groups, prominences, stabilitiesGroups
 
@@ -294,7 +297,7 @@ class FuzzyCat:
 
         if self.fuzzyClusters.size:
             # Setup hierarchy information
-            whichFuzzyCluster, sampleWeights = self._setupHierarchyInformation_njit(self.ordering, self.fuzzyClusters, self._sampleNumbers, self.n_samples)
+            whichFuzzyCluster, sampleWeights = self._setupHierarchyInformation_njit(self.ordering, self.fuzzyClusters, self._sampleNumbers, self.nSamples)
             baseNames = np.char.add(np.char.rstrip(self.clusterFileNames, '.npy'), '-')
 
             # Cycle through all clusters and adjust membership probabilities of each point
@@ -308,14 +311,16 @@ class FuzzyCat:
                     whichFC_parents = np.unique(whichFuzzyCluster[np.char.startswith(baseNames[i], baseNames)])
 
                     # Update memberships
-                    self._updateMemberships_njit(self.memberships, self._hierarchyCorrection, self.fuzzyHierarchy, clusterArr, whichFC_cluster, whichFC_parents, sampleWeights[self._sampleNumbers[i]])
+                    thisSampleNumber = self._sampleNumbers[i]
+                    sampleWeights_i = sampleWeights[thisSampleNumber]
+                    self._updateMemberships_njit(self.memberships, self._hierarchyCorrection, self.fuzzyHierarchy, clusterArr, whichFC_cluster, whichFC_parents, sampleWeights_i)
             # Normalise memberships
-            normFactor = self.n_samples*self.stabilities.reshape(-1, 1)
+            normFactor = self.nSamples*self.stabilities.reshape(-1, 1)
             self.memberships /= normFactor
             self._hierarchyCorrection /= normFactor
             self.memberships_flat = self.memberships - self._hierarchyCorrection
             self.fuzzyHierarchy /= normFactor.T
-        else: self.memberships_flat = np.zeros((self.n_samples, self.nPoints))
+        else: self.memberships_flat = np.zeros((0, self.nPoints))
         
         self._extractFuzzyClustersTime = time.perf_counter() - start
     
@@ -346,13 +351,13 @@ class FuzzyCat:
     
     @staticmethod
     @njit()
-    def _setupHierarchyInformation_njit(ordering, fuzzyClusters, _sampleNumbers, n_samples):
+    def _setupHierarchyInformation_njit(ordering, fuzzyClusters, _sampleNumbers, nSamples):
         whichFuzzyCluster = -np.ones(ordering.size, dtype = np.int32)
-        sampleWeights = np.zeros((n_samples, fuzzyClusters.shape[0]), dtype = np.int32)
+        sampleWeights = np.zeros((nSamples, fuzzyClusters.shape[0]), dtype = np.int32)
         sampleNumbers_ordered = _sampleNumbers[ordering]
         for i, clst in enumerate(fuzzyClusters):
             whichFuzzyCluster[ordering[clst[0]:clst[1]]] = i
-            for j in range(n_samples):
+            for j in range(nSamples):
                 multiplicity = (sampleNumbers_ordered[clst[0]:clst[1]] == j).sum()
                 if multiplicity: sampleWeights[j, i] = 1/multiplicity
         return whichFuzzyCluster, sampleWeights
