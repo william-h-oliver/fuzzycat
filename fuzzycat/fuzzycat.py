@@ -4,9 +4,10 @@ import numpy as np
 from numba import njit
 
 class FuzzyCat:
-    def __init__(self, directoryName, nSamples, nPoints, minJaccardIndex = 0.5, minStability = 0.5, checkpoint = False, workers = -1, verbose = 2):
-        check_directoryName = isinstance(directoryName, str) and directoryName != "" and os.path.exists(directoryName)
+    def __init__(self, nSamples, nPoints, directoryName = None, minJaccardIndex = 0.5, minStability = 0.5, checkpoint = False, workers = -1, verbose = 2):
+        check_directoryName = (isinstance(directoryName, str) and directoryName != "" and os.path.exists(directoryName)) or directoryName is None
         assert check_directoryName, "Parameter 'directoryName' must be a string and must exist!"
+        if directoryName is None: directoryName = os.getcwd()
         if directoryName[-1] != '/': directoryName += '/'
         self.directoryName = directoryName
 
@@ -93,8 +94,17 @@ class FuzzyCat:
 
                     # Calculate the similarity between clusters i and j
                     if dTypes[i] == dTypes[j] == 1: self.edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._jaccardIndex_njit(lazyLoad[i], lazyLoad[j], self.nPoints)
-                    else: self.edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(lazyLoad[i].astype(np.float64), lazyLoad[j].astype(np.float64))
-
+                    elif dTypes[i] == dTypes[j]:
+                        self.edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(lazyLoad[i], lazyLoad[j])
+                    else:
+                        clusterFloating = np.zeros(self.nPoints)
+                        if dTypes[i] == 1:
+                            clusterFloating[lazyLoad[i]] = 1
+                            self.edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(clusterFloating, lazyLoad[j])
+                        else:
+                            clusterFloating[lazyLoad[j]] = 1
+                            self.edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(lazyLoad[i], clusterFloating)
+                        
             # Save arrays
             if self.checkpoint:
                 np.save(self.directoryName + 'clusterFileNames.npy', self.clusterFileNames)
@@ -305,15 +315,14 @@ class FuzzyCat:
                 whichFC_cluster = whichFuzzyCluster[i]
                 if whichFC_cluster != -1:
                     # Load cluster
-                    clusterArr = np.load(self.directoryName + 'Clusters/' + clstFileName_i)
+                    cluster, dType = self.readClusterFile(self.directoryName + 'Clusters/' + clstFileName_i)
 
                     # Find the parent of cluster 'i' from within the same sample
                     whichFC_parents = np.unique(whichFuzzyCluster[np.char.startswith(baseNames[i], baseNames)])
 
                     # Update memberships
-                    thisSampleNumber = self._sampleNumbers[i]
-                    sampleWeights_i = sampleWeights[thisSampleNumber]
-                    self._updateMemberships_njit(self.memberships, self._hierarchyCorrection, self.fuzzyHierarchy, clusterArr, whichFC_cluster, whichFC_parents, sampleWeights_i)
+                    if dType == 1: self._updateMemberships_njit(self.memberships, self._hierarchyCorrection, self.fuzzyHierarchy, cluster, whichFC_cluster, whichFC_parents, sampleWeights[self._sampleNumbers[i]])
+                    else: self._updateWeightedMemberships_njit(self.memberships, self._hierarchyCorrection, self.fuzzyHierarchy, cluster, whichFC_cluster, whichFC_parents, sampleWeights[self._sampleNumbers[i]])
             # Normalise memberships
             normFactor = self.nSamples*self.stabilities.reshape(-1, 1)
             self.memberships /= normFactor
@@ -364,10 +373,20 @@ class FuzzyCat:
 
     @staticmethod
     @njit()
-    def _updateMemberships_njit(memberships, _hierarchyCorrection, fuzzyHierarchy, clusterArr, whichFC_cluster, whichFC_parents, sampleWeights_i):
-        memberships[whichFC_cluster, clusterArr] += sampleWeights_i[whichFC_cluster]
+    def _updateMemberships_njit(memberships, _hierarchyCorrection, fuzzyHierarchy, cluster, whichFC_cluster, whichFC_parents, sampleWeights_i):
+        memberships[whichFC_cluster, cluster] += sampleWeights_i[whichFC_cluster]
         for whichFC_parent in whichFC_parents:
             if whichFC_parent != -1 and whichFC_parent != whichFC_cluster:
                 weight = sampleWeights_i[whichFC_cluster]*sampleWeights_i[whichFC_parent]
-                _hierarchyCorrection[whichFC_parent, clusterArr] += weight
+                _hierarchyCorrection[whichFC_parent, cluster] += weight
+                fuzzyHierarchy[whichFC_parent, whichFC_cluster] += weight
+
+    @staticmethod
+    @njit()
+    def _updateWeightedMemberships_njit(memberships, _hierarchyCorrection, fuzzyHierarchy, cluster, whichFC_cluster, whichFC_parents, sampleWeights_i):
+        memberships[whichFC_cluster] += sampleWeights_i[whichFC_cluster]*cluster
+        for whichFC_parent in whichFC_parents:
+            if whichFC_parent != -1 and whichFC_parent != whichFC_cluster:
+                weight = sampleWeights_i[whichFC_cluster]*sampleWeights_i[whichFC_parent]
+                _hierarchyCorrection[whichFC_parent] += weight*cluster
                 fuzzyHierarchy[whichFC_parent, whichFC_cluster] += weight
