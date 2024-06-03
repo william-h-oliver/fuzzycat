@@ -30,7 +30,7 @@ dependencies = [
     "numpy",
     "numba",
     "scikit-learn",
-    "fast_hdbscan",
+    "hdbscan",
     "astrolink"
 ]
 

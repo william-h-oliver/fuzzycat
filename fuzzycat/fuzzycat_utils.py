@@ -4,7 +4,7 @@ from numba import njit, prange
 
 from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture
-from fast_hdbscan import HDBSCAN
+from hdbscan import HDBSCAN
 from astrolink import AstroLink
 
 def clusteringsFromRandomSamples(P, covP, nSamples = 100, directoryName = None, clusteringAlgorithm = 'astrolink', clusteringAlgorithmArgs = None, workers = -1):
