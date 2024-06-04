@@ -1,13 +1,55 @@
+# Standard libraries
 import os
+
+# Third-party libraries
 import numpy as np
 from numba import njit, prange
-
 from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture
 from hdbscan import HDBSCAN
 from astrolink import AstroLink
 
 def clusteringsFromRandomSamples(P, covP, nSamples = 100, directoryName = None, clusteringAlgorithm = 'astrolink', clusteringAlgorithmArgs = None, workers = -1):
+    """Generates random samples of a fuzzy data set, runs a clustering
+    algorithm on each sample, and saves the clusters as .npy files so that
+    FuzzyCat can use them.
+
+    Parameters
+    ----------
+    P : numpy.ndarray
+        The mean values of the fuzzy data set from which to generate random
+        samples from.
+    covP : float or numpy.ndarray
+        The covariance matrix of the fuzzy data set from which to generate
+        random samples from. The random samples of points can be either 
+        homogenous or heterogenous and either spherically-symmetric, 
+        axis-aligned, or multivariate.
+    nSamples : int, default is 100
+        The number of random samples to generate.
+    directoryName : str, default is None
+        The directory in which to save the clusters. If None, the current
+        working directory is used.
+    clusteringAlgorithm : str or callable, default is 'astrolink'
+        The clustering algorithm to use. If a string, the following are
+        supported: 'kmeans', 'gaussianmixture', 'hdbscan', 'astrolink'.
+        If a callable, the function must take the following parameters:
+
+        - P_sample : numpy.ndarray
+            A random sample of the fuzzy data set.
+        - iteration : int
+            A uniquely identifying number corresponding to this random sample.
+        - nSamples : int
+            The total number of random samples that are being generated.
+        - directoryName : str
+            The directory in which to save the clusters.
+        - **clusteringAlgorithmArgs : dict
+            Additional keyword arguments to pass to the clustering algorithm.
+    clusteringAlgorithmArgs : dict, default is None
+        Additional keyword arguments to pass to the clustering algorithm.
+    workers : int, default is -1
+        The number of CPU cores to use. If -1, all available cores are used.
+    """
+
     check_P = isinstance(P, np.ndarray) and P.ndim == 2
     assert check_P, "Parameter 'P' must be a 2D numpy array!"
 
@@ -47,6 +89,14 @@ def clusteringsFromRandomSamples(P, covP, nSamples = 100, directoryName = None, 
     
 @njit(parallel = True)
 def sqrtCovPCase6_njit(covP):
+    """A fast implementation of the square root of the covariance matrices of
+    that describe heterogenous multivariate Gaussian noise.
+
+    Parameters
+    ----------
+    covP : numpy.ndarray
+        The covariance matrices of the fuzzy data set.
+    """
     sqrtCovP = np.empty(covP.shape)
     for i in prange(covP.shape[0]):
         eigenValues, eigenVectors = np.linalg.eigh(covP[i])
@@ -54,6 +104,38 @@ def sqrtCovPCase6_njit(covP):
     return sqrtCovP
 
 def runAndSaveClustering(P_sample, iteration, nSamples = 1000, directoryName = None, clusteringAlgorithm = 'astrolink', clusteringAlgorithmArgs = None):
+    """Runs a clustering algorithm on a sample of a data set and saves the 
+    clusters as .npy files so that FuzzyCat can use them.
+
+    Parameters
+    ----------
+    P_sample : numpy.ndarray
+        A random sample of the fuzzy data set.
+    iteration : int
+        A uniquely identifying number corresponding to this random sample.
+    nSamples : int, default is 1000
+        The total number of random samples that are being generated.
+    directoryName : str, default is None
+        The directory in which to save the clusters. If None, the current
+        working directory is used.
+    clusteringAlgorithm : str or callable, default is 'astrolink'
+        The clustering algorithm to use. If a string, the following are
+        supported: 'kmeans', 'gaussianmixture', 'hdbscan', 'astrolink'.
+        If a callable, the function must take the following parameters:
+
+        - P_sample : numpy.ndarray
+            A random sample of the fuzzy data set.
+        - iteration : int
+            A uniquely identifying number corresponding to this random sample.
+        - nSamples : int
+            The total number of random samples that are being generated.
+        - directoryName : str  
+            The directory in which to save the clusters.
+        - **clusteringAlgorithmArgs : dict
+            Additional keyword arguments to pass to the clustering algorithm.
+    clusteringAlgorithmArgs : dict, default is None
+        Additional keyword arguments to pass to the clustering algorithm.
+    """
     check_P_sample = isinstance(P_sample, np.ndarray) and P_sample.ndim == 2
     assert check_P_sample, "Parameter 'P_sample' must be a 2D numpy array!"
 
@@ -90,10 +172,11 @@ def runAndSaveClustering(P_sample, iteration, nSamples = 1000, directoryName = N
         # Run GaussianMixture
         c = GaussianMixture(**clusteringAlgorithmArgs)
         c.fit(P_sample)
+        clusters = c.predict_proba(P_sample)
 
         # Save clusters
-        for clst_id in np.unique(c.predict(P_sample)):
-            np.save(directoryName + 'Clusters/' + f"{iteration:0{sampleNumberFormat}}_{clst_id}.npy", np.where(c.predict(P_sample) == clst_id)[0])
+        for clst_id, clst in enumerate(clusters.T):
+            np.save(directoryName + 'Clusters/' + f"{iteration:0{sampleNumberFormat}}_{clst_id}.npy", clst)
     elif clusteringAlgorithm == 'hdbscan':
         # Run HDBSCAN
         c = HDBSCAN(**clusteringAlgorithmArgs)
@@ -101,7 +184,8 @@ def runAndSaveClustering(P_sample, iteration, nSamples = 1000, directoryName = N
 
         # Save clusters
         for clst_id in np.unique(c.labels_):
-            np.save(directoryName + 'Clusters/' + f"{iteration:0{sampleNumberFormat}}_{clst_id}.npy", np.where(c.labels_ == clst_id)[0])
+            if clst_id != -1:
+                np.save(directoryName + 'Clusters/' + f"{iteration:0{sampleNumberFormat}}_{clst_id}.npy", np.where(c.labels_ == clst_id)[0])
     elif clusteringAlgorithm == 'astrolink':
         # Run AstroLink
         c = AstroLink(P_sample, **clusteringAlgorithmArgs)

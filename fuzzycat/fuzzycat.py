@@ -1,9 +1,104 @@
+"""
+FuzzyCat: A generalised method of producing probabilistic clusters from a series 
+of clusterings that have been generated from different representations of the 
+same point-based data.
+
+Author: William H. Oliver <william.hardie.oliver@gmail.com>
+License: MIT
+"""
+
+# Standard libraries
 import os
 import time
+
+# Third-party libraries
 import numpy as np
 from numba import njit
 
 class FuzzyCat:
+    """A class to represent the FuzzyCat algorithm.
+
+    FuzzyCat...
+
+    Parameters
+    ----------
+    nSamples : `int`
+        The number of samples and therefore the number of clusterings that were
+        generated.
+    nPoints : `int`
+        The number of points in the data set.
+    directoryName : `str` or `None`, default = None
+        The file path of the directory where the cluster files are stored. If 
+        `None`, the current working directory is used. The directory must 
+        contain a subdirectory called 'Clusters' that contains the cluster 
+        files. The cluster files must be in the form of numpy arrays and be 
+        named according to the 'XXX_A-B-C.npy' format, where 'XXX' is the
+        0-padded sample number (integer in [0, nSamples - 1]) and 'A-B-C' is the 
+        hierarchical cluster id of the cluster. The cluster files must also have 
+        the '.npy' extension. In addition, the cluster arrays must either; 
+        contain the indices (integers) of the points that belong to the cluster, 
+        or contain the membership probabilities (floats) of the points in the 
+        cluster.
+    minJaccardIndex : `float`, default = 0.5
+        The minimum Jaccard index that a fuzzy cluster must have to be included
+        in the final set of fuzzy clusters.
+    minStability : `float`, default = 0.5
+        The minimum stability that a fuzzy cluster must have to be included in 
+        the final set of fuzzy clusters.
+    checkpoint : `bool`, default = False
+        Whether to save the cluster file names, pairs, and edges arrays to the 
+        directory.
+    workers : `int`, default = -1
+        The number of processors used in parallelised computations. If `workers`
+        is set to -1, then FuzzyCat will use all processors available.
+        Otherwise, `workers` must be a value between 1 and N_cpu.
+    verbose : `int`, default = 2
+        The verbosity of the FuzzyCat class. If `verbose` is set to 0, then
+        FuzzyCat will not report any of its activity. Increasing `verbose` will
+        make FuzzyCat report more of its activity.
+
+    Attributes
+    ----------
+    clusterFileNames : `numpy.ndarray` of shape (n_clusters,)
+        The names of the cluster files that FuzzyCat has used. The files have
+        been found in the subdirectory, `directoryName` + 'Clusters/'.
+    jaccardIndices : `numpy.ndarray` of shape (n_clusters,)
+        The maximum Jaccard index the clusters share with any other cluster.
+    ordering : `numpy.ndarray` of shape (n_clusters,)
+        The ordering of the clusters in the ordered list of fuzzy structure. The
+        ordered-jaccard plot can be created by plotting
+        `y = jaccardIndices[ordering]` vs `x = range(ordering.size)`.
+    fuzzyClusters : `numpy.ndarray` of shape (n_fuzzyclusters, 2)
+        The start and end positions of each fuzzy cluster as it appears in the
+        ordered list, such that
+        `ordering[fuzzyClusters[i, 0]:fuzzyClusters[i, 1]]` gives an array of
+        the indices of the points within cluster `i`.
+    stabilities : `numpy.ndarray` of shape (n_fuzzyclusters,)
+        The stability of each fuzzy cluster.
+    memberships : `numpy.ndarray` of shape (n_fuzzyclusters, nPoints)
+        The membership probabilities of each point to each fuzzy cluster.
+    memberships_flat : `numpy.ndarray` of shape (n_fuzzyclusters, nPoints)
+        The flattened membership probabilities of each point to each fuzzy
+        cluster, excluding the hierarchy correction. If the fuzzy clusters are
+        inherently hierarchical, then `memberships_flat` may be more easily
+        interpretable than `memberships` since `memberships_flat.sum(axis = 0)` 
+        will be contained within the interval [0, 1].
+    fuzzyHierarchy : `numpy.ndarray` of shape (n_fuzzyclusters, n_fuzzyclusters)
+        Information about the fuzzy hierarchy of the fuzzy clusters. The value
+        of `fuzzyHierarchy[i, j]` is the probability that fuzzy cluster `j` is a
+        child of fuzzy cluster `i`.
+    groups : `numpy.ndarray` of shape (n_groups, 2)
+        Similar to `fuzzyClusters`, however `groups` includes all possible fuzzy
+        clusters before they have been selected for with `minJaccardIndex` and
+        `minStability`.
+    prominences : `numpy.ndarray` of shape (n_groups,)
+        The prominence values of each group in `groups`, such that
+        `prominences[i]` corresponds to group `i` in `groups`.
+    stabilitiesGroups : `numpy.ndarray` of shape (n_groups,)
+        The stability of each group in `groups`, such that
+        `stabilitiesGroups[i]` corresponds to group `i` in `groups`.
+    """
+
     def __init__(self, nSamples, nPoints, directoryName = None, minJaccardIndex = 0.5, minStability = 0.5, checkpoint = False, workers = -1, verbose = 2):
         check_directoryName = (isinstance(directoryName, str) and directoryName != "" and os.path.exists(directoryName)) or directoryName is None
         assert check_directoryName, "Parameter 'directoryName' must be a string and must exist!"
@@ -43,6 +138,13 @@ class FuzzyCat:
             else: print(f"FuzzyCat: {message}")
     
     def run(self):
+        """Runs the FuzzyCat algorithm and produces fuzzy clusters from a 
+        directory containing a folder, 'Cluster/', with existing cluster files.
+
+        This method runs `computeSimilarities()`, `aggregate()`, and
+        `extractFuzzyClusters()`.
+        """
+
         assert os.path.exists(self.directoryName + 'Clusters/'), f"Directory {self.directoryName + 'Clusters/'} does not exist!"
         self._printFunction(f"Started                          | {time.strftime('%Y-%m-%d %H:%M:%S')}", returnLine = False)
         begin = time.perf_counter()
@@ -64,6 +166,15 @@ class FuzzyCat:
         self._printFunction(f"Completed                        | {time.strftime('%Y-%m-%d %H:%M:%S')}       ", returnLine = False)
 
     def computeSimilarities(self):
+        """Computes the similarities between all pairs of clusters in the
+        chosen directory.
+
+        This method requires the directory to contain a subdirectory called
+        'Clusters/' that contains the cluster files.
+
+        This method generates the `_pairs` and `_edges` attributes.
+        """
+
         if self.verbose > 1: self._printFunction('Computing similarities...        ')
         start = time.perf_counter()
         
@@ -75,8 +186,8 @@ class FuzzyCat:
         # If so, load them, otherwise, compute them
         if clstFileNamesFileBool and pairsFileBool and edgesFileBool:
             self.clusterFileNames = np.load(self.directoryName + 'clusterFileNames.npy')
-            self.pairs = np.load(self.directoryName + 'pairs.npy')
-            self.edges = np.load(self.directoryName + 'edges.npy')
+            self._pairs = np.load(self.directoryName + 'pairs.npy')
+            self._edges = np.load(self.directoryName + 'edges.npy')
         else:
             # Get all cluster files in directory
             self.clusterFileNames = np.array([fileName for fileName in os.listdir(self.directoryName + 'Clusters/') if fileName.endswith('.npy')])
@@ -85,7 +196,7 @@ class FuzzyCat:
             n_clusters = self.clusterFileNames.size
             lazyLoad = [False for i in range(n_clusters)]
             dTypes = np.zeros(n_clusters, dtype = np.int8)
-            self.pairs, self.edges = self._initGraph(n_clusters)
+            self._pairs, self._edges = self._initGraph(n_clusters)
             for i in range(n_clusters):
                 for j in range(i + 1, n_clusters):
                     # Load clusters
@@ -93,23 +204,23 @@ class FuzzyCat:
                     if lazyLoad[j] is False: lazyLoad[j], dTypes[j] = self.readClusterFile(self.directoryName + 'Clusters/' + self.clusterFileNames[j])
 
                     # Calculate the similarity between clusters i and j
-                    if dTypes[i] == dTypes[j] == 1: self.edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._jaccardIndex_njit(lazyLoad[i], lazyLoad[j], self.nPoints)
+                    if dTypes[i] == dTypes[j] == 1: self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._jaccardIndex_njit(lazyLoad[i], lazyLoad[j], self.nPoints)
                     elif dTypes[i] == dTypes[j]:
-                        self.edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(lazyLoad[i], lazyLoad[j])
+                        self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(lazyLoad[i], lazyLoad[j])
                     else:
                         clusterFloating = np.zeros(self.nPoints)
                         if dTypes[i] == 1:
                             clusterFloating[lazyLoad[i]] = 1
-                            self.edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(clusterFloating, lazyLoad[j])
+                            self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(clusterFloating, lazyLoad[j])
                         else:
                             clusterFloating[lazyLoad[j]] = 1
-                            self.edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(lazyLoad[i], clusterFloating)
+                            self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(lazyLoad[i], clusterFloating)
                         
             # Save arrays
             if self.checkpoint:
                 np.save(self.directoryName + 'clusterFileNames.npy', self.clusterFileNames)
-                np.save(self.directoryName + 'pairs.npy', self.pairs)
-                np.save(self.directoryName + 'edges.npy', self.edges)
+                np.save(self.directoryName + 'pairs.npy', self._pairs)
+                np.save(self.directoryName + 'edges.npy', self._edges)
 
         self._similarityMatrixTime = time.perf_counter() - start
     
@@ -145,11 +256,27 @@ class FuzzyCat:
         return np.minimum(c1, c2).sum()/np.maximum(c1, c2).sum()
 
     def aggregate(self):
+        """Aggregates the clusters together to form the ordered list whilst
+        keeping track of groups.
+
+        Sorts cluster pairs into descending order of edge weight and aggregates
+        the clusters while keeping track of structural information about the
+        data.
+
+        This method requires the `_pairs` and '_edges' attributes to have already
+        been created, via the `computeSimilarities` method or otherwise.
+
+        This method generates the `jaccardIndices`, `ordering`, `groups`,
+        `prominences`, and `stabilitiesGroups` attributes.
+
+        This method deletes the `_pairs` and '_edges' attributes.
+        """
+
         if self.verbose > 1: self._printFunction('Making fuzzy clusters...        ')
         start = time.perf_counter()
         self._sampleNumbers = np.array([np.uint32(splitFileName[0]) for splitFileName in np.char.split(self.clusterFileNames, '_', 1)])
-        self.jaccardIndices, self.ordering, self.groups, self.prominences, self.stabilitiesGroups = self._aggregate_njit(self.pairs, self.edges, self._sampleNumbers, self.nSamples)
-        del self.pairs, self.edges
+        self.jaccardIndices, self.ordering, self.groups, self.prominences, self.stabilitiesGroups = self._aggregate_njit(self._pairs, self._edges, self._sampleNumbers, self.nSamples)
+        del self._pairs, self._edges
         reorder = np.array(sorted(np.arange(self.groups.shape[0]), key = lambda i: [self.groups[i, 0], self.clusterFileNames.size - self.groups[i, 1]]), dtype = np.uint32)
         self.groups, self.prominences, self.stabilitiesGroups = self.groups[reorder], self.prominences[reorder], self.stabilitiesGroups[reorder]
         self._aggregationTime = time.perf_counter() - start
@@ -294,11 +421,26 @@ class FuzzyCat:
         stabilitiesGroups = np.empty(groups.shape[0], dtype = np.int32)
         for i, g in enumerate(groups):
             stabilitiesGroups[i] = np.unique(sampleNumbers[ordering[g[0]:g[1]]]).size
-        stabilitiesGroups = stabilitiesGroups.astype(np.float64)/nSamples
+        stabilitiesGroups = stabilitiesGroups.astype(np.float32)/nSamples
 
         return jaccardIndices, ordering, groups, prominences, stabilitiesGroups
 
     def extractFuzzyClusters(self):
+        """Classifies fuzzy clusters as the smallest groups that meet the
+        `minJaccardIndex` and `minStability` requirements.
+
+        This method requires the `ordering`, `groups`, `prominences`,
+        `stabilitiesGroups`, and `_sampleNumbers` attributes to have already 
+        been created, via the `aggregate()` method or otherwise. It also 
+        requires the `clusterFileNames` attribute to have already been created, 
+        via the `computeSimilarities` method or otherwise. In addition, this 
+        method requires the directory to contain a subdirectory called
+        'Clusters/' that contains the cluster files.
+
+        This method generates the 'fuzzyClusters', `stabilities`, `memberships`,
+        `memberships_flat`, and `fuzzyHierarchy` attributes.
+        """
+
         if self.verbose > 1: self._printFunction('Assigning probabilities...        ')
         start = time.perf_counter()
 

@@ -13,7 +13,7 @@ build-backend = "setuptools.build_meta"
 # single source of truth for astrolink's version
 [project]
 name = "fuzzycat"
-description = "A generalised method of producing fuzzy clusters from a series of hard clusters that present differently to one another due to some underlying process(es)."
+description = "A generalised method of producing probabilistic clusters from a series of clusterings that have been generated from different representations of the same point-based data."
 readme = "README.md"
 maintainers = [
     { name = "William Oliver", email = "william.hardie.oliver@gmail.com" },
@@ -31,7 +31,8 @@ dependencies = [
     "numba",
     "scikit-learn",
     "hdbscan",
-    "astrolink"
+    "astrolink",
+    "matplotlib"
 ]
 
 [project.optional-dependencies]
