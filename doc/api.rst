@@ -10,13 +10,13 @@ FuzzyCat
    :members:
 
 FuzzyData
---------------
+---------
 
 .. automodule:: fuzzycat.FuzzyData
    :members:
 
 FuzzyPlots
---------------
+----------
 
 .. automodule:: fuzzycat.FuzzyPlots
    :members:
