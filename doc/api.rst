@@ -1,7 +1,7 @@
 API Reference
 =============
 
-Most functionality comes from the FuzzyCat class with methods in the randomSampleClustering_utils script helping with pre- and post-analysis.
+Most functionality comes from the FuzzyCat class, with additional methods in the FuzzyData and FuzzyPlots scripts helping with pre- and post-analysis.
 
 FuzzyCat
 ---------
@@ -9,14 +9,14 @@ FuzzyCat
 .. autoclass:: fuzzycat.fuzzycat.FuzzyCat
    :members:
 
-randomSampleClustering_utils
+FuzzyData
 --------------
 
-.. automodule:: fuzzycat.randomSampleClustering_utils
+.. automodule:: fuzzycat.FuzzyData
    :members:
 
-plotting_utils
+FuzzyPlots
 --------------
 
-.. automodule:: fuzzycat.plotting_utils
+.. automodule:: fuzzycat.FuzzyPlots
    :members:
