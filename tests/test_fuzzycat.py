@@ -126,7 +126,7 @@ def test_fuzzycat():
     assert isinstance(arr, np.ndarray), "Property 'jaccardIndices' must be a numpy array!"
     assert arr.dtype.type == np.float32, "Property 'jaccardIndices' must contain 32-bit floats!"
     assert arr.shape == fc.clusterFileNames.shape, "Property 'jaccardIndices' must have the same shape as 'clusterFileNames'!"
-    assert np.all(0 <= arr) and np.all(arr <= 1), "All 'jaccardIndices' values must be in the interval [0, 1]!"
+    assert np.allclose(np.minimum(arr, 0), 0) and np.allclose(np.maximum(arr, 1), 1), "All 'jaccardIndices' values must be in the interval [0, 1]!"
 
     # ordering
     arr = fc.ordering
@@ -149,7 +149,7 @@ def test_fuzzycat():
     assert isinstance(arr, np.ndarray), "Property 'stabilities' must be a numpy array!"
     assert arr.ndim == 1, "Property 'stabilities' must be 1-dimensional!"
     assert arr.size == fc.fuzzyClusters.shape[0], "Property 'stabilities' must have the same number of rows as 'fuzzyClusters'!"
-    assert np.all(0 <= arr) and np.all(arr <= 1), "All 'stabilities' values must be in the interval [0, 1]!"
+    assert np.allclose(np.minimum(arr, 0), 0) and np.allclose(np.maximum(arr, 1), 1), "All 'stabilities' values must be in the interval [0, 1]!"
     assert np.all(arr >= fc.minStability), "All 'stabilities' values must be greater than or equal to 'minStability'!"
 
     # memberships
@@ -158,7 +158,7 @@ def test_fuzzycat():
     assert arr.ndim == 2, "Property 'memberships' must be 2-dimensional!"
     assert arr.shape[0] == fc.fuzzyClusters.shape[0], "Property 'memberships' must have the same number of rows as 'fuzzyClusters'!"
     assert arr.shape[1] == fc.nPoints, "Property 'memberships' must have `nPoints`-many columns!"
-    assert np.all(0 <= arr) and np.all(arr <= 1), "All 'memberships' values must be in the interval [0, 1]!"
+    assert np.allclose(np.minimum(arr, 0), 0) and np.allclose(np.maximum(arr, 1), 1), "All 'memberships' values must be in the interval [0, 1]!"
 
     # memberships_flat
     arr = fc.memberships_flat
@@ -166,15 +166,15 @@ def test_fuzzycat():
     assert arr.ndim == 2, "Property 'memberships_flat' must be 2-dimensional!"
     assert arr.shape[0] == fc.fuzzyClusters.shape[0], "Property 'memberships_flat' must have the same number of rows as 'fuzzyClusters'!"
     assert arr.shape[1] == fc.nPoints, "Property 'memberships_flat' must have `nPoints`-many columns!"
-    assert np.all(0 <= arr) and np.all(arr <= 1), "All 'memberships_flat' values must be in the interval [0, 1]!"
-    assert np.all(fc.stabilities.reshape(-1, 1)*arr.sum(axis = 0) <= 1), "For each point, the sum over the fuzzy clusters of 'memberships_flat' values must be less than or equal to 1!"
+    assert np.allclose(np.minimum(arr, 0), 0) and np.allclose(np.maximum(arr, 1), 1), "All 'memberships_flat' values must be in the interval [0, 1]!"
+    assert np.allclose(np.maximum(fc.stabilities.reshape(-1, 1)*arr.sum(axis = 0), 1), 1), "For each point, the sum over the fuzzy clusters of 'memberships_flat' values must be less than or equal to 1!"
 
     # fuzzyHierarchy
     arr = fc.fuzzyHierarchy
     assert isinstance(arr, np.ndarray), "Property 'fuzzyHierarchy' must be a numpy array!"
     assert arr.ndim == 2, "Property 'fuzzyHierarchy' must be 2-dimensional!"
     assert arr.shape[0] == arr.shape[1] == fc.fuzzyClusters.shape[0], "Property 'fuzzyHierarchy' must be a square array with the same number of rows/columns as 'fuzzyClusters' has rows!"
-    assert np.all(0 <= arr) and np.all(arr <= 1), "All 'fuzzyHierarchy' values must be in the interval [0, 1]!"
+    assert np.allclose(np.minimum(arr, 0), 0) and np.allclose(np.maximum(arr, 1), 1), "All 'fuzzyHierarchy' values must be in the interval [0, 1]!"
 
     # groups
     arr = fc.groups
@@ -189,14 +189,14 @@ def test_fuzzycat():
     assert isinstance(arr, np.ndarray), "Property 'prominences' must be a numpy array!"
     assert arr.ndim == 1, "Property 'prominences' must be 1-dimensional!"
     assert arr.size == fc.groups.shape[0], "Property 'prominences' must have the same number of rows as 'groups'!"
-    assert np.all(0 <= arr) and np.all(arr <= 1), "All 'prominences' must be in the interval [0, 1]!"
+    assert np.allclose(np.minimum(arr, 0), 0) and np.allclose(np.maximum(arr, 1), 1), "All 'prominences' must be in the interval [0, 1]!"
 
     # stabilityGroups
     arr = fc.stabilitiesGroups
     assert isinstance(arr, np.ndarray), "Property 'stabilitiesGroups' must be a numpy array!"
     assert arr.ndim == 1, "Property 'stabilitiesGroups' must be 1-dimensional!"
     assert arr.size == fc.groups.shape[0], "Property 'stabilitiesGroups' must have the same number of rows as 'groups'!"
-    assert np.all(0 <= arr) and np.all(arr <= 1), "All 'stabilityGroups' values must be in the interval [0, 1]!"
+    assert np.allclose(np.minimum(arr, 0), 0) and np.allclose(np.maximum(arr, 1), 1), "All 'stabilityGroups' values must be in the interval [0, 1]!"
 
     # Test plotting_utils
     try: FuzzyPlots.plotOrderedJaccardIndex(fc)
