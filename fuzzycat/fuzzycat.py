@@ -39,7 +39,7 @@ class FuzzyCat:
         contain the indices (integers) of the points that belong to the cluster, 
         or contain the membership probabilities (floats) of the points in the 
         cluster.
-    minJaccardIndex : `float`, default = 0.5
+    minJaccardIndex : `float`, default = 0.3
         The minimum Jaccard index that a fuzzy cluster must have to be included
         in the final set of fuzzy clusters.
     minStability : `float`, default = 0.5
@@ -99,7 +99,7 @@ class FuzzyCat:
         `stabilitiesGroups[i]` corresponds to group `i` in `groups`.
     """
 
-    def __init__(self, nSamples, nPoints, directoryName = None, minJaccardIndex = 0.5, minStability = 0.5, checkpoint = False, workers = -1, verbose = 2):
+    def __init__(self, nSamples, nPoints, directoryName = None, minJaccardIndex = 0.3, minStability = 0.5, checkpoint = False, workers = -1, verbose = 2):
         check_directoryName = (isinstance(directoryName, str) and directoryName != "" and os.path.exists(directoryName)) or directoryName is None
         assert check_directoryName, "Parameter 'directoryName' must be a string and must exist!"
         if directoryName is None: directoryName = os.getcwd()
@@ -146,7 +146,7 @@ class FuzzyCat:
         """
 
         assert os.path.exists(self.directoryName + 'Clusters/'), f"Directory {self.directoryName + 'Clusters/'} does not exist!"
-        self._printFunction(f"Started                          | {time.strftime('%Y-%m-%d %H:%M:%S')}", returnLine = False)
+        self._printFunction(f"Started            | {time.strftime('%Y-%m-%d %H:%M:%S')}", returnLine = False)
         begin = time.perf_counter()
 
         # Phase 1
@@ -160,10 +160,10 @@ class FuzzyCat:
 
         self._totalTime = time.perf_counter() - begin
         if self.verbose > 1:
-            self._printFunction(f"Similarities time                | {100*self._similarityMatrixTime/self._totalTime:.2f}%    ", returnLine = False)
-            self._printFunction(f"Aggregation time                 | {100*self._aggregationTime/self._totalTime:.2f}%    ", returnLine = False)
-            self._printFunction(f"Fuzzy cluster extraction time    | {100*self._extractFuzzyClustersTime/self._totalTime:.2f}%    ", returnLine = False)
-        self._printFunction(f"Completed                        | {time.strftime('%Y-%m-%d %H:%M:%S')}       ", returnLine = False)
+            self._printFunction(f"Similarities time  | {100*self._similarityMatrixTime/self._totalTime:.2f}%    ", returnLine = False)
+            self._printFunction(f"Aggregation time   | {100*self._aggregationTime/self._totalTime:.2f}%    ", returnLine = False)
+            self._printFunction(f"Extraction time    | {100*self._extractFuzzyClustersTime/self._totalTime:.2f}%    ", returnLine = False)
+        self._printFunction(f"Completed          | {time.strftime('%Y-%m-%d %H:%M:%S')}       ", returnLine = False)
 
     def computeSimilarities(self):
         """Computes the similarities between all pairs of clusters in the
