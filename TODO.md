@@ -5,7 +5,7 @@ The following tasks need to be done to get a fully working project:
 * Head to your user settings at `https://pypi.org` and setup PyPI trusted publishing.
   In order to do so, you have to head to the "Publishing" tab, scroll to the bottom
   and add a "new pending publisher". The relevant information is:
-  * PyPI project name: `fuzzy-cat`
+  * PyPI project name: `fuzzycategories`
   * Owner: `william-h-oliver`
   * Repository name: `fuzzycat`
   * Workflow name: `pypi.yml`

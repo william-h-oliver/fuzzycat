@@ -12,7 +12,7 @@ FuzzyCat is a general-purpose soft-clustering algorithm that, given a series of 
 The Python package `fuzzycat` can be installed from PyPI:
 
 ```
-python -m pip install fuzzy-cat
+python -m pip install fuzzycategories
 ```
 
 ## Basic usage
