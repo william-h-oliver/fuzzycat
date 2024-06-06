@@ -1,3 +1,5 @@
+# Ignore setuptools_scm generated version file
+fuzzycat/_version.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
