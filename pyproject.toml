@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 # This section provides general project metadata that is used across
 # a variety of build tools. Notably, the version specified here is the
-# single source of truth for astrolink's version
+# single source of truth for fuzzycat's version
 [project]
 name = "fuzzycat"
 description = "A generalised method of producing probabilistic clusters from a series of clusterings that have been generated from different representations of the same point-based data."
@@ -19,7 +19,6 @@ maintainers = [
     { name = "William Oliver", email = "william.hardie.oliver@gmail.com" },
 ]
 dynamic = ["version"]
-#version = "0.1.0"
 requires-python = ">=3.8"
 license = { text = "MIT" }
 classifiers = [
