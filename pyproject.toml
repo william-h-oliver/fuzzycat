@@ -12,7 +12,7 @@ build-backend = "setuptools.build_meta"
 # a variety of build tools. Notably, the version specified here is the
 # single source of truth for fuzzycat's version
 [project]
-name = "fuzzycat"
+name = "fuzzycategories"
 description = "A generalised method of producing probabilistic clusters from a series of clusterings that have been generated from different representations of the same point-based data."
 readme = "README.md"
 maintainers = [
