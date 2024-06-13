@@ -39,9 +39,12 @@ class FuzzyCat:
         contain the indices (integers) of the points that belong to the cluster, 
         or contain the membership probabilities (floats) of the points in the 
         cluster.
-    minJaccardIndex : `float`, default = 0.3
-        The minimum Jaccard index that a fuzzy cluster must have to be included
-        in the final set of fuzzy clusters.
+    minIntraJaccardIndex : `float`, default = 0.5
+        The minimum Jaccard index that at least two clusters within a fuzzy 
+        cluster must have for it be included in the final set of fuzzy clusters.
+    maxInterJaccardIndex : `float`, default = 0.5
+        The maximum Jaccard index that any two fuzzy clusters can have for them
+        to be able to included in the final set of fuzzy clusters.
     minStability : `float`, default = 0.5
         The minimum stability that a fuzzy cluster must have to be included in 
         the final set of fuzzy clusters.
@@ -89,17 +92,21 @@ class FuzzyCat:
         child of fuzzy cluster `i`.
     groups : `numpy.ndarray` of shape (n_groups, 2)
         Similar to `fuzzyClusters`, however `groups` includes all possible fuzzy
-        clusters before they have been selected for with `minJaccardIndex` and
-        `minStability`.
-    prominences : `numpy.ndarray` of shape (n_groups,)
-        The prominence values of each group in `groups`, such that
-        `prominences[i]` corresponds to group `i` in `groups`.
+        clusters before they have been selected for with `minIntraJaccardIndex`, 
+        `maxInterJaccardIndex`, and `minStability`.
+    intraJaccardIndicesGroups : `numpy.ndarray` of shape (n_groups,)
+        The maxmimum Jaccard Index value of each group in `groups`, such that
+        `intraJaccardIndicesGroups[i]` corresponds to group `i` in `groups`.
+    interJaccardIndicesGroups : `numpy.ndarray` of shape (n_groups,)
+        The maximum Jaccard Index value that each group shares with another 
+        group in `groups`, such that `interJaccardIndicesGroups[i]` corresponds 
+        to group `i` in `groups`.
     stabilitiesGroups : `numpy.ndarray` of shape (n_groups,)
         The stability of each group in `groups`, such that
         `stabilitiesGroups[i]` corresponds to group `i` in `groups`.
     """
 
-    def __init__(self, nSamples, nPoints, directoryName = None, minJaccardIndex = 0.3, minStability = 0.5, checkpoint = False, workers = -1, verbose = 2):
+    def __init__(self, nSamples, nPoints, directoryName = None, minIntraJaccardIndex = 0.5, maxInterJaccardIndex = 0.5, minStability = 0.5, checkpoint = False, workers = -1, verbose = 2):
         check_directoryName = (isinstance(directoryName, str) and directoryName != "" and os.path.exists(directoryName)) or directoryName is None
         assert check_directoryName, "Parameter 'directoryName' must be a string and must exist!"
         if directoryName is None: directoryName = os.getcwd()
@@ -114,9 +121,13 @@ class FuzzyCat:
         assert check_nPoints, "Parameter 'nPoints' must be a positive integer!"
         self.nPoints = nPoints
 
-        check_minJaccardIndex = issubclass(type(minJaccardIndex), (int, float, np.integer, np.floating)) and 0 <= minJaccardIndex <= 1
-        assert check_minJaccardIndex, "Parameter 'minJaccardIndex' must be a float (or integer) in the interval [0, 1]!"
-        self.minJaccardIndex = minJaccardIndex
+        check_minIntraJaccardIndex = issubclass(type(minIntraJaccardIndex), (int, float, np.integer, np.floating)) and 0 <= minIntraJaccardIndex <= 1
+        assert check_minIntraJaccardIndex, "Parameter 'minIntraJaccardIndex' must be a float (or integer) in the interval [0, 1]!"
+        self.minIntraJaccardIndex = minIntraJaccardIndex
+
+        check_maxInterJaccardIndex = issubclass(type(maxInterJaccardIndex), (int, float, np.integer, np.floating)) and 0 <= maxInterJaccardIndex <= 1
+        assert check_maxInterJaccardIndex, "Parameter 'maxInterJaccardIndex' must be a float (or integer) in the interval [0, 1]!"
+        self.maxInterJaccardIndex = maxLInterJaccardIndex
 
         check_minStability = issubclass(type(minStability), (int, float, np.integer, np.floating)) and 0 <= minStability <= 1
         assert check_minStability, "Parameter 'minExistenceProbability' must be a float (or integer) in the interval [0, 1]!"
@@ -267,7 +278,8 @@ class FuzzyCat:
         been created, via the `computeSimilarities` method or otherwise.
 
         This method generates the `jaccardIndices`, `ordering`, `groups`,
-        `prominences`, and `stabilitiesGroups` attributes.
+        `intraJaccardIndicesGroups`, `interJaccardIndicesGroups`, and 
+        `stabilitiesGroups` attributes.
 
         This method deletes the `_pairs` and '_edges' attributes.
         """
@@ -275,10 +287,10 @@ class FuzzyCat:
         if self.verbose > 1: self._printFunction('Making fuzzy clusters...        ')
         start = time.perf_counter()
         self._sampleNumbers = np.array([np.uint32(splitFileName[0]) for splitFileName in np.char.split(self.clusterFileNames, '_', 1)])
-        self.jaccardIndices, self.ordering, self.groups, self.prominences, self.stabilitiesGroups = self._aggregate_njit(self._pairs, self._edges, self._sampleNumbers, self.nSamples)
+        self.jaccardIndices, self.ordering, self.groups, self.intraJaccardIndicesGroups, self.interJaccardIndicesGroups, self.stabilitiesGroups = self._aggregate_njit(self._pairs, self._edges, self._sampleNumbers, self.nSamples)
         del self._pairs, self._edges
         reorder = np.array(sorted(np.arange(self.groups.shape[0]), key = lambda i: [self.groups[i, 0], self.clusterFileNames.size - self.groups[i, 1]]), dtype = np.uint32)
-        self.groups, self.prominences, self.stabilitiesGroups = self.groups[reorder], self.prominences[reorder], self.stabilitiesGroups[reorder]
+        self.groups, self.intraJaccardIndicesGroups, self.interJaccardIndicesGroups, self.stabilitiesGroups = self.groups[reorder], self.intraJaccardIndicesGroups[reorder], self.interJaccardIndicesGroups[reorder], self.stabilitiesGroups[reorder]
         self._aggregationTime = time.perf_counter() - start
 
     @staticmethod
@@ -298,12 +310,14 @@ class FuzzyCat:
         # For smaller groups
         starts_leq = [np.uint32(0) for i in range(0)]
         sizes_leq = [np.uint32(0) for i in range(0)]
-        prominences_leq = [np.float32(0.0) for i in range(0)]
+        intraJI_leq = [np.float32(0.0) for i in range(0)]
+        interJI_leq = [np.float32(0.0) for i in range(0)]
         children = [[np.uint32(0) for i in range(0)] for i in range(0)]
         # For larger groups
         starts_geq = [np.uint32(0) for i in range(0)]
         sizes_geq = [np.uint32(0) for i in range(0)]
-        prominences_geq = [np.float32(0.0) for i in range(0)]
+        intraJI_geq = [np.float32(0.0) for i in range(0)]
+        interJI_geq = [np.float32(0.0) for i in range(0)]
 
         for pair, edge in zip(pairs, edges):
             #if edge == 0.0: break
@@ -324,12 +338,15 @@ class FuzzyCat:
                     # Track complementary group
                     starts_geq[id_1] = starts_leq[id_0]
                     sizes_geq[id_1] = sizes_leq[id_0]
-                    prominences_geq[id_1] = prominences_leq[id_0] - edge
+                    intraJI_geq[id_1] = intraJI_leq[id_0]
+                    interJI_geq[id_1] = edge
+
                     # Merge
                     starts_leq[id_1] += sizes_leq[id_0]
                     sizes_leq[id_0] += sizes_leq[id_1]
-                    prominences_leq[id_0] = max(prominences_leq[id_0], prominences_leq[id_1])
-                    prominences_leq[id_1] -= edge
+                    intraJI_leq[id_0] = max(intraJI_leq[id_0], intraJI_leq[id_1])
+                    interJI_leq[id_1] = edge
+
                     children[id_0].append(id_1)
             elif id_1 == n_clusters: # Neither are aggregated
                 ids[pair] = count
@@ -339,19 +356,21 @@ class FuzzyCat:
                 # Create group
                 starts_leq.append(0)
                 sizes_leq.append(2)
-                prominences_leq.append(edge)
+                intraJI_leq.append(edge)
+                interJI_leq.append(0.0)
                 children.append([np.uint32(0) for i in range(0)])
                 # Track complementary group
                 starts_geq.append(0)
                 sizes_geq.append(0)
-                prominences_geq.append(0.0)
+                intraJI_geq.append(0.0)
+                interJI_geq.append(0.0)
             else: # pair[1] is already aggregated (but not pair[0])
                 p_0 = pair[0]
                 ids[p_0] = id_1
                 jaccardIndices[p_0] = edge
                 aggregations[id_1].append(p_0)
                 sizes_leq[id_1] += 1
-                prominences_leq[id_1] = max(prominences_leq[id_1], edge)
+                intraJI_leq[id_1] = max(intraJI_leq[id_1], edge)
 
         # Merge separate aggregations in order of decreasing size
         aggArr = np.unique(ids)
@@ -365,7 +384,7 @@ class FuzzyCat:
                 # Track larger group
                 starts_geq[id_leq] = starts_leq[id_final]
                 sizes_geq[id_leq] = sizes_leq[id_final]
-                prominences_geq[id_leq] = prominences_leq[id_final]
+                intraJI_geq[id_leq] = intraJI_leq[id_final]
                 # Merge
                 starts_leq[id_leq] += sizes_leq[id_final]
                 sizes_leq[id_final] += size_leq
@@ -386,36 +405,37 @@ class FuzzyCat:
             if childIDs:
                 startAdjust = starts_leq[id_leq]
                 activeGroups.extend(childIDs)
-                noise = 0.0
-                for id_geq, childID in enumerate(childIDs):
+                for childID in childIDs:
                     starts_leq[childID] += startAdjust
                     starts_geq[childID] += startAdjust
-                    if id_geq > 0: prominences_geq[childID] -= np.sqrt(noise/id_geq)
-                    noise += prominences_leq[childID]**2
-                prominences_leq[id_leq] -= np.sqrt(noise/(id_geq + 1))
                 children[id_leq] = emptyIntList
 
         # Lists to Arrays
         starts_leq = np.array(starts_leq, dtype = np.uint32)
         sizes_leq = np.array(sizes_leq, dtype = np.uint32)
-        prominences_leq = np.array(prominences_leq, dtype = np.float32)
+        intraJI_leq = np.array(intraJI_leq, dtype = np.float32)
+        interJI_leq = np.array(interJI_leq, dtype = np.float32)
         starts_geq = np.array(starts_geq, dtype = np.uint32)
         sizes_geq = np.array(sizes_geq, dtype = np.uint32)
-        prominences_geq = np.array(prominences_geq, dtype = np.float32)
+        intraJI_geq = np.array(intraJI_geq, dtype = np.float32)
+        interJI_geq = np.array(interJI_geq, dtype = np.float32)
 
         # Clean and reorder arrays
         starts_leq = np.delete(starts_leq, id_final)
         groups_leq = np.column_stack((starts_leq, starts_leq + np.delete(sizes_leq, id_final)))
         starts_leq, sizes_leq = emptyIntArr, emptyIntArr
-        prominences_leq = np.delete(prominences_leq, id_final)
+        intraJI_leq = np.delete(intraJI_leq, id_final)
+        interJI_leq = np.delete(interJI_leq, id_final)
         starts_geq = np.delete(starts_geq, id_final)
         groups_geq = np.column_stack((starts_geq, starts_geq + np.delete(sizes_geq, id_final)))
         starts_geq, sizes_geq = emptyIntArr, emptyIntArr
-        prominences_geq = np.delete(prominences_geq, id_final)
+        intraJI_geq = np.delete(intraJI_geq, id_final)
+        interJI_geq = np.delete(interJI_geq, id_final)
 
         # Combine arrays
         groups = np.vstack((groups_leq, groups_geq))
-        prominences = np.concatenate((prominences_leq, prominences_geq))
+        intraJaccardIndicesGroups = np.concatenate((intraJI_leq, intraJI_geq))
+        interJaccardIndicesGroups = np.concatenate((interJI_leq, interJI_geq))
 
         # Calculate existence probabilities
         stabilitiesGroups = np.empty(groups.shape[0], dtype = np.int32)
@@ -423,13 +443,15 @@ class FuzzyCat:
             stabilitiesGroups[i] = np.unique(sampleNumbers[ordering[g[0]:g[1]]]).size
         stabilitiesGroups = stabilitiesGroups.astype(np.float32)/nSamples
 
-        return jaccardIndices, ordering, groups, prominences, stabilitiesGroups
+        return jaccardIndices, ordering, groups, intraJaccardIndicesGroups, interJaccardIndicesGroups, stabilitiesGroups
 
     def extractFuzzyClusters(self):
         """Classifies fuzzy clusters as the smallest groups that meet the
-        `minJaccardIndex` and `minStability` requirements.
+        `minIntraJaccardIndex`, `maxInterJaccardIndex`, and `minStability` 
+        requirements.
 
-        This method requires the `ordering`, `groups`, `prominences`,
+        This method requires the `ordering`, `groups`, 
+        `intraJaccardIndicesGroups`, `interJaccardIndicesGroups`,
         `stabilitiesGroups`, and `_sampleNumbers` attributes to have already 
         been created, via the `aggregate()` method or otherwise. It also 
         requires the `clusterFileNames` attribute to have already been created, 
@@ -437,7 +459,8 @@ class FuzzyCat:
         method requires the directory to contain a subdirectory called
         'Clusters/' that contains the cluster files.
 
-        This method generates the 'fuzzyClusters', `stabilities`, `memberships`,
+        This method generates the 'fuzzyClusters', `intraJaccardIndices`, 
+        `self.interJaccardIndices`, `stabilities`, `memberships`,
         `memberships_flat`, and `fuzzyHierarchy` attributes.
         """
 
@@ -445,7 +468,7 @@ class FuzzyCat:
         start = time.perf_counter()
 
         # Extract fuzzy clusters and setup memberships and fuzzy hierarchy arrays
-        self.fuzzyClusters, self.stabilities, self.memberships, self._hierarchyCorrection, self.fuzzyHierarchy = self._extractFuzzyClusters_njit(self.groups, self.prominences, self.stabilitiesGroups, self.minJaccardIndex, self.minStability, self.nPoints)
+        self.fuzzyClusters, self.intraJaccardIndices, self.interJaccardIndices, self.stabilities, self.memberships, self._hierarchyCorrection, self.fuzzyHierarchy = self._extractFuzzyClusters_njit(self.groups, self.intraJaccardIndicesGroups, self.interJaccardIndicesGroups, self.stabilitiesGroups, self.minIntraJaccardIndex, self.maxInterJaccardIndex, self.minStability, self.nPoints)
 
         if self.fuzzyClusters.size:
             # Setup hierarchy information
@@ -477,8 +500,8 @@ class FuzzyCat:
     
     @staticmethod
     @njit()
-    def _extractFuzzyClusters_njit(groups, prominences, stabilitiesGroups, minJaccardIndex, minStability, nPoints):
-        sl = np.logical_and(prominences > minJaccardIndex, stabilitiesGroups > minStability) #np.sqrt(prominences*stabilitiesGroups) > minJaccardIndex
+    def _extractFuzzyClusters_njit(groups, intraJaccardIndicesGroups, interJaccardIndicesGroups, stabilitiesGroups, minIntraJaccardIndex, maxInterJaccardIndex, minStability, nPoints):
+        sl = np.logical_and(intraJaccardIndicesGroups > minIntraJaccardIndex, interJaccardIndicesGroups > maxInterJaccardIndex, stabilitiesGroups > minStability)
         fuzzyClusters = groups[sl]
         stabilities = stabilitiesGroups[sl]
 
@@ -498,7 +521,7 @@ class FuzzyCat:
         _hierarchyCorrection = np.zeros((shape0, nPoints))
         fuzzyHierarchy = np.zeros((shape0, shape0))
 
-        return fuzzyClusters[sl], stabilities[sl], memberships, _hierarchyCorrection, fuzzyHierarchy
+        return fuzzyClusters[sl], intraJaccardIndicesGroups[sl], interJaccardIndicesGroups[sl], stabilities[sl], memberships, _hierarchyCorrection, fuzzyHierarchy
     
     @staticmethod
     @njit()
