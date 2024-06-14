@@ -460,7 +460,7 @@ class FuzzyCat:
         'Clusters/' that contains the cluster files.
 
         This method generates the 'fuzzyClusters', `intraJaccardIndices`, 
-        `self.interJaccardIndices`, `stabilities`, `memberships`,
+        `interJaccardIndices`, `stabilities`, `memberships`,
         `memberships_flat`, and `fuzzyHierarchy` attributes.
         """
 
@@ -469,7 +469,7 @@ class FuzzyCat:
 
         # Extract fuzzy clusters and setup memberships and fuzzy hierarchy arrays
         self.fuzzyClusters, self.intraJaccardIndices, self.interJaccardIndices, self.stabilities, self.memberships, self._hierarchyCorrection, self.fuzzyHierarchy = self._extractFuzzyClusters_njit(self.groups, self.intraJaccardIndicesGroups, self.interJaccardIndicesGroups, self.stabilitiesGroups, self.minIntraJaccardIndex, self.maxInterJaccardIndex, self.minStability, self.nPoints)
-
+        
         if self.fuzzyClusters.size:
             # Setup hierarchy information
             whichFuzzyCluster, sampleWeights = self._setupHierarchyInformation_njit(self.ordering, self.fuzzyClusters, self._sampleNumbers, self.nSamples)
@@ -501,7 +501,7 @@ class FuzzyCat:
     @staticmethod
     @njit()
     def _extractFuzzyClusters_njit(groups, intraJaccardIndicesGroups, interJaccardIndicesGroups, stabilitiesGroups, minIntraJaccardIndex, maxInterJaccardIndex, minStability, nPoints):
-        sl = np.logical_and(intraJaccardIndicesGroups >= minIntraJaccardIndex, interJaccardIndicesGroups <= maxInterJaccardIndex, stabilitiesGroups >= minStability)
+        sl = (intraJaccardIndicesGroups >= minIntraJaccardIndex)*(interJaccardIndicesGroups <= maxInterJaccardIndex)*(stabilitiesGroups >= minStability)
         fuzzyClusters = groups[sl]
         intraJaccardIndices = intraJaccardIndicesGroups[sl]
         interJaccardIndices = interJaccardIndicesGroups[sl]
