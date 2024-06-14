@@ -503,6 +503,8 @@ class FuzzyCat:
     def _extractFuzzyClusters_njit(groups, intraJaccardIndicesGroups, interJaccardIndicesGroups, stabilitiesGroups, minIntraJaccardIndex, maxInterJaccardIndex, minStability, nPoints):
         sl = np.logical_and(intraJaccardIndicesGroups > minIntraJaccardIndex, interJaccardIndicesGroups > maxInterJaccardIndex, stabilitiesGroups > minStability)
         fuzzyClusters = groups[sl]
+        intraJaccardIndices = intraJaccardIndicesGroups[sl]
+        interJaccardIndices = interJaccardIndicesGroups[sl]
         stabilities = stabilitiesGroups[sl]
 
         # Keep only those groups that are the smallest in their cascade
@@ -521,7 +523,7 @@ class FuzzyCat:
         _hierarchyCorrection = np.zeros((shape0, nPoints))
         fuzzyHierarchy = np.zeros((shape0, shape0))
 
-        return fuzzyClusters[sl], intraJaccardIndicesGroups[sl], interJaccardIndicesGroups[sl], stabilities[sl], memberships, _hierarchyCorrection, fuzzyHierarchy
+        return fuzzyClusters[sl], intraJaccardIndices[sl], interJaccardIndices[sl], stabilities[sl], memberships, _hierarchyCorrection, fuzzyHierarchy
     
     @staticmethod
     @njit()
