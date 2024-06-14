@@ -81,12 +81,12 @@ def test_fuzzycat():
     # _aggregate_njit()
     fc.computeSimilarities()
     fc._sampleNumbers = np.array([np.uint32(splitFileName[0]) for splitFileName in np.char.split(fc.clusterFileNames, '_', 1)])
-    arr1, arr2, arr3, arr4, arr5 = fc._aggregate_njit.py_func(fc._pairs, fc._edges, fc._sampleNumbers, fc.nSamples)
-    del arr1, arr2, arr3, arr4, arr5
+    arr1, arr2, arr3, arr4, arr5, arr6 = fc._aggregate_njit.py_func(fc._pairs, fc._edges, fc._sampleNumbers, fc.nSamples)
+    del arr1, arr2, arr3, arr4, arr5, arr6
 
     # _extractFuzzyClusters_njit()
-    arr1, arr2, memberships, _hierarchyCorrection, fuzzyHierarchy = fc._extractFuzzyClusters_njit.py_func(fc.groups, fc.prominences, fc.stabilitiesGroups, fc.minJaccardIndex, fc.minStability, fc.nPoints)
-    del arr1, arr2
+    arr1, arr2, arr3, arr4, memberships, _hierarchyCorrection, fuzzyHierarchy = fc._extractFuzzyClusters_njit.py_func(fc.groups, fc.intraJaccardIndicesGroups, fc.interJaccardIndicesGroups, fc.stabilitiesGroups, fc.minJaccardIndex, fc.minStability, fc.nPoints)
+    del arr1, arr2, arr3, arr4
 
     # _setupHierarchyInformation_njit()
     whichFuzzyCluster, sampleWeights = fc._setupHierarchyInformation_njit.py_func(fc.ordering, fc.fuzzyClusters, fc._sampleNumbers, fc.nSamples)
@@ -184,12 +184,19 @@ def test_fuzzycat():
     assert np.all(arr[:, 1] > arr[:, 0]), "Property 'groups' must have the first column less than the second column (as these values represent the start and end positions of the group within the ordered list)!"
     assert np.all(arr >= 0) and np.all(arr <= fc.clusterFileNames.size), "All values in 'groups' must be in the interval [0, clusterFileNames.size - 1]!"
 
-    # prominences
-    arr = fc.prominences
-    assert isinstance(arr, np.ndarray), "Property 'prominences' must be a numpy array!"
-    assert arr.ndim == 1, "Property 'prominences' must be 1-dimensional!"
-    assert arr.size == fc.groups.shape[0], "Property 'prominences' must have the same number of rows as 'groups'!"
-    assert np.allclose(np.minimum(arr, 0), 0) and np.allclose(np.maximum(arr, 1), 1), "All 'prominences' must be in the interval [0, 1]!"
+    # intraJaccardIndicesGroups
+    arr = fc.intraJaccardIndicesGroups
+    assert isinstance(arr, np.ndarray), "Property 'intraJaccardIndicesGroups' must be a numpy array!"
+    assert arr.ndim == 1, "Property 'intraJaccardIndicesGroups' must be 1-dimensional!"
+    assert arr.size == fc.groups.shape[0], "Property 'intraJaccardIndicesGroups' must have the same number of rows as 'groups'!"
+    assert np.allclose(np.minimum(arr, 0), 0) and np.allclose(np.maximum(arr, 1), 1), "All 'intraJaccardIndicesGroups' values must be in the interval [0, 1]!"
+
+    # interJaccardIndicesGroups
+    arr = fc.interJaccardIndicesGroups
+    assert isinstance(arr, np.ndarray), "Property 'interJaccardIndicesGroups' must be a numpy array!"
+    assert arr.ndim == 1, "Property 'interJaccardIndicesGroups' must be 1-dimensional!"
+    assert arr.size == fc.groups.shape[0], "Property 'interJaccardIndicesGroups' must have the same number of rows as 'groups'!"
+    assert np.allclose(np.minimum(arr, 0), 0) and np.allclose(np.maximum(arr, 1), 1), "All 'interJaccardIndicesGroups' values must be in the interval [0, 1]!"
 
     # stabilityGroups
     arr = fc.stabilitiesGroups
