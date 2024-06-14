@@ -85,7 +85,7 @@ def test_fuzzycat():
     del arr1, arr2, arr3, arr4, arr5, arr6
 
     # _extractFuzzyClusters_njit()
-    arr1, arr2, arr3, arr4, memberships, _hierarchyCorrection, fuzzyHierarchy = fc._extractFuzzyClusters_njit.py_func(fc.groups, fc.intraJaccardIndicesGroups, fc.interJaccardIndicesGroups, fc.stabilitiesGroups, fc.minJaccardIndex, fc.minStability, fc.nPoints)
+    arr1, arr2, arr3, arr4, memberships, _hierarchyCorrection, fuzzyHierarchy = fc._extractFuzzyClusters_njit.py_func(fc.groups, fc.intraJaccardIndicesGroups, fc.interJaccardIndicesGroups, fc.stabilitiesGroups, fc.minIntraJaccardIndex, fc.maxInterJaccardIndex, fc.minStability, fc.nPoints)
     del arr1, arr2, arr3, arr4
 
     # _setupHierarchyInformation_njit()
