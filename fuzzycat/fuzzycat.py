@@ -501,7 +501,7 @@ class FuzzyCat:
     @staticmethod
     @njit()
     def _extractFuzzyClusters_njit(groups, intraJaccardIndicesGroups, interJaccardIndicesGroups, stabilitiesGroups, minIntraJaccardIndex, maxInterJaccardIndex, minStability, nPoints):
-        sl = np.logical_and(intraJaccardIndicesGroups > minIntraJaccardIndex, interJaccardIndicesGroups > maxInterJaccardIndex, stabilitiesGroups > minStability)
+        sl = np.logical_and(intraJaccardIndicesGroups >= minIntraJaccardIndex, interJaccardIndicesGroups <= maxInterJaccardIndex, stabilitiesGroups >= minStability)
         fuzzyClusters = groups[sl]
         intraJaccardIndices = intraJaccardIndicesGroups[sl]
         interJaccardIndices = interJaccardIndicesGroups[sl]

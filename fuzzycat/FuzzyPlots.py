@@ -33,7 +33,7 @@ def plotOrderedJaccardIndex(fc, figsize = (8, 8), linewidth = 0.5, save = True, 
     """
 
     # Check parameters
-    check_fc = hasattr(fc, 'jaccardIndices') and hasattr(fc, 'ordering') and hasattr(fc, 'fuzzyClusters') and hasattr(fc, 'minJaccardIndex') and hasattr(fc, 'directoryName')
+    check_fc = hasattr(fc, 'jaccardIndices') and hasattr(fc, 'ordering') and hasattr(fc, 'fuzzyClusters') and hasattr(fc, 'directoryName')
     assert check_fc, "Parameter 'fc' must be an instance of the FuzzyCat class and have been used to find fuzzy clusters!"
 
     # Create a figure and axis
@@ -50,7 +50,7 @@ def plotOrderedJaccardIndex(fc, figsize = (8, 8), linewidth = 0.5, save = True, 
     ax.set_ylabel('Jaccard Index')
     ax.set_xlim(0, jacc_ordered.size - 1)
     ax.set_ylim(0, 1)
-    ax.set_yticks([0, fc.minJaccardIndex, 1])
+    ax.set_yticks([0, 1])
 
     # Save, show and close
     if save: plt.savefig(fc.directoryName + 'OrderedJaccardIndex', dpi = dpi)
