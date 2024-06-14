@@ -127,7 +127,7 @@ class FuzzyCat:
 
         check_maxInterJaccardIndex = issubclass(type(maxInterJaccardIndex), (int, float, np.integer, np.floating)) and 0 <= maxInterJaccardIndex <= 1
         assert check_maxInterJaccardIndex, "Parameter 'maxInterJaccardIndex' must be a float (or integer) in the interval [0, 1]!"
-        self.maxInterJaccardIndex = maxLInterJaccardIndex
+        self.maxInterJaccardIndex = maxInterJaccardIndex
 
         check_minStability = issubclass(type(minStability), (int, float, np.integer, np.floating)) and 0 <= minStability <= 1
         assert check_minStability, "Parameter 'minExistenceProbability' must be a float (or integer) in the interval [0, 1]!"
