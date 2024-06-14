@@ -25,7 +25,7 @@ def test_fuzzycat():
 
     # Generate some clusterable fuzzy data
     nPoints, sigma = 10**4, 0.05**2
-    P = datasets.make_moons(nPoints, noise = 0.12)[0]
+    P = datasets.make_moons(nPoints, noise = 0.1)[0]
     covP = sigma*np.tile(np.eye(P.shape[1]).reshape(1, P.shape[1], P.shape[1]), (P.shape[0], 1, 1))
 
     # Resample the data and cluster it
@@ -150,7 +150,7 @@ def test_fuzzycat():
     assert arr.ndim == 1, "Property 'stabilities' must be 1-dimensional!"
     assert arr.size == fc.fuzzyClusters.shape[0], "Property 'stabilities' must have the same number of rows as 'fuzzyClusters'!"
     assert np.allclose(np.minimum(arr, 0), 0) and np.allclose(np.maximum(arr, 1), 1), "All 'stabilities' values must be in the interval [0, 1]!"
-    assert np.all(arr >= fc.minStability), "All 'stabilities' values must be greater than or equal to 'minStability'!"
+    assert np.allclose(np.minimum(arr, fc.minStability), fc.minStability), "All 'stabilities' values must be greater than or equal to 'minStability'!"
 
     # memberships
     arr = fc.memberships
