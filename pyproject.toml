@@ -13,7 +13,7 @@ build-backend = "setuptools.build_meta"
 # single source of truth for fuzzycat's version
 [project]
 name = "fuzzycategories"
-description = "A generalised method of producing probabilistic clusters from a series of clusterings that have been generated from different representations of the same point-based data."
+description = "A generalised method of producing a soft hierarchy of soft clusters from a series of existing clusterings that have been generated using different representations of the same point-based data set."
 readme = "README.md"
 maintainers = [
     { name = "William Oliver", email = "william.hardie.oliver@gmail.com" },
