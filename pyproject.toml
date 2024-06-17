@@ -27,8 +27,8 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
-    "numpy",
-    "numba<2",
+    "numpy<2",
+    "numba",
     "scikit-learn",
     "hdbscan",
     "astrolink",
