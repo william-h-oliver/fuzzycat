@@ -28,7 +28,7 @@ classifiers = [
 ]
 dependencies = [
     "numpy",
-    "numba",
+    "numba<2",
     "scikit-learn",
     "hdbscan",
     "astrolink",
