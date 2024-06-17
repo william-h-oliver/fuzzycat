@@ -1,7 +1,6 @@
-"""
-Author: William H. Oliver <william.hardie.oliver@gmail.com>
-License: MIT
-"""
+#Author: William H. Oliver <william.hardie.oliver@gmail.com>
+#License: MIT
+
 
 # Standard libraries
 import os

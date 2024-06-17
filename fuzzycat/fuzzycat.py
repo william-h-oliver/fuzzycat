@@ -1,7 +1,7 @@
 """
-FuzzyCat: A generalised method of producing probabilistic clusters from a series 
-of clusterings that have been generated from different representations of the 
-same point-based data.
+FuzzyCat: A generalised method of producing a soft hierarchy of soft clusters 
+from a series of existing clusterings that have been generated using 
+different representations of the same point-based data set.
 
 Author: William H. Oliver <william.hardie.oliver@gmail.com>
 License: MIT
@@ -18,7 +18,14 @@ from numba import njit
 class FuzzyCat:
     """A class to represent the FuzzyCat algorithm.
 
-    FuzzyCat...
+    FuzzyCat is a generalised method of producing a soft hierarchy of soft 
+    clusters from a series of existing clusterings that have been generated 
+    using different representations of the same point-based data set. The core 
+    concept of the algorithm is that a density-based clustering of these 
+    existing clusters can be found, since the Jaccard index (distance) between 
+    clusters endows the space of clusters with a similarity (metric). The 
+    resultant clusters of clusters thereby propagate any hidden effects of the 
+    process that is underlying the different representations of the data set.
 
     Parameters
     ----------
