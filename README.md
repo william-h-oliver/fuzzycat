@@ -7,6 +7,8 @@
 
 FuzzyCat is a general-purpose soft-clustering algorithm that, given a series of clusterings on point-based data, is able to produce data-driven fuzzy clusters whose membership functions encapsulate the effects of any changes in the clusterings due to changes in the feature space of the data. The fuzzy clusters are produced empirically by finding groups of clusters within the many clusterings. The different clusterings may be governed by any underlying process that affects the clusters (e.g. stochastic sampling from uncertain data, temporal evolution of the data, clustering algorithm hyperparameter variation, etc.). In effect, FuzzyCat propagates the effects of the underlying process(es) into a soft-clustering which has had these effects abstracted away into the membership functions of the original point-based data.
 
+The FuzzyCat documentation can be found on [ReadTheDocs](https://fuzzycat.readthedocs.io/).
+
 ## Installation
 
 The Python package `fuzzycat` can be installed from PyPI:
@@ -60,7 +62,9 @@ FuzzyData.clusteringsFromRandomSamples(P, covP)
 
 For clarity, here's a gif showing the clusterings produced for each realisation...
 
-![A gif showing the random sample clusterings from AstroLink.](./images/readme/Resampled_Clusterings.gif)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/william-h-oliver/fuzzycat/main/images/readme/Resampled_Clusterings.gif" alt="A gif showing the random sample clusterings from AstroLink."/>
+</p>
 
 
 ### Applying FuzzyCat
@@ -89,7 +93,9 @@ FuzzyPlots.plotFuzzyLabelsOnX(fc, P)
 
 ... which produces a figure whereby the points of `P` are coloured according to their membership within each of the fuzzy clusters. For this scenario, we get...
 
-![AstroLink clusters with progagated uncertainties.](./images/readme/Fuzzy_Labels.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/william-h-oliver/fuzzycat/main/images/readme/Fuzzy_Labels.png" alt="AstroLink clusters with progagated uncertainties."/>
+</p>
 
 ... which shows that the effect of these uncertainties on the AstroLink clusters is to give them *fuzzy borders* &mdash; indicated by the colours of the points fading to black and/or mixing around the boundaries of these clusters.
 
