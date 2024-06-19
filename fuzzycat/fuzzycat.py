@@ -58,11 +58,11 @@ class FuzzyCat:
     checkpoint : `bool`, default = False
         Whether to save the cluster file names, pairs, and edges arrays to the 
         directory.
-    workers : `int`, default = -1
+    workers : `int`, default = 8
         The number of processors used in parallelised computations. If `workers`
         is set to -1, then FuzzyCat will use all processors available.
         Otherwise, `workers` must be a value between 1 and N_cpu.
-    verbose : `int`, default = 2
+    verbose : `int`, default = 0
         The verbosity of the FuzzyCat class. If `verbose` is set to 0, then
         FuzzyCat will not report any of its activity. Increasing `verbose` will
         make FuzzyCat report more of its activity.
@@ -113,7 +113,7 @@ class FuzzyCat:
         `stabilitiesGroups[i]` corresponds to group `i` in `groups`.
     """
 
-    def __init__(self, nSamples, nPoints, directoryName = None, minIntraJaccardIndex = 0.5, maxInterJaccardIndex = 0.5, minStability = 0.5, checkpoint = False, workers = -1, verbose = 2):
+    def __init__(self, nSamples, nPoints, directoryName = None, minIntraJaccardIndex = 0.5, maxInterJaccardIndex = 0.5, minStability = 0.5, checkpoint = False, workers = 8, verbose = 0):
         check_directoryName = (isinstance(directoryName, str) and directoryName != "" and os.path.exists(directoryName)) or directoryName is None
         assert check_directoryName, "Parameter 'directoryName' must be a string and must exist!"
         if directoryName is None: directoryName = os.getcwd()
@@ -144,9 +144,9 @@ class FuzzyCat:
         assert check_checkpoint, "Parameter 'checkpoint' must be a boolean!"
         self.checkpoint = checkpoint
 
-        check_workers = issubclass(type(workers), (int, np.integer)) and (1 <= workers <= os.cpu_count() or workers == -1)
-        assert check_workers, f"Parameter 'workers' must be set as either '-1' or needs to be an integer that is >= 1 and <= N_cpu (= {os.cpu_count()})"
-        os.environ["OMP_NUM_THREADS"] = f"{workers}" if workers != -1 else f"{os.cpu_count()}"
+        check_workers = issubclass(type(workers), (int, np.integer)) and (1 <= workers or workers == -1)
+        assert check_workers, f"Parameter 'workers' must be set as either '-1' or needs to be an integer that is >= 1 (values > N_cpu will be set to N_cpu)!"
+        os.environ["OMP_NUM_THREADS"] = f"{min(workers, os.cpu_count())}" if workers != -1 else f"{os.cpu_count()}"
         self.workers = workers
         self.verbose = verbose
 
