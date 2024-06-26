@@ -97,7 +97,7 @@ def test_fuzzycat():
         whichFC_cluster = whichFuzzyCluster[i]
         if whichFC_cluster != -1:
             # Load cluster
-            cluster, dataType = fc.readClusterFile(i)
+            cluster, dataType = fc.retrieveCluster(i)
 
             # Find the parent of cluster 'i' from within the same sample
             whichFC_parents = np.unique(whichFuzzyCluster[np.char.startswith(baseNames[i], baseNames)])
