@@ -110,7 +110,7 @@ def test_fuzzycat():
                     clusterFloating[cluster] = 1
                     fc._updateWeightedMemberships_njit.py_func(memberships, _hierarchyCorrection, fuzzyHierarchy, clusterFloating, whichFC_cluster, whichFC_parents, sampleWeights[fc._sampleNumbers[i]])
                 except: assert False, "'_updateWeightedMemberships_njit()' failed!"
-                del whichFC_cluster, cluster, dType, whichFC_parents, clusterFloating
+                del whichFC_cluster, cluster, dataType, whichFC_parents, clusterFloating
                 break
     del memberships, _hierarchyCorrection, fuzzyHierarchy, whichFuzzyCluster, sampleWeights, baseNames
 
