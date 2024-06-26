@@ -9,6 +9,7 @@ License: MIT
 
 # Standard libraries
 import os
+import psutil
 import time
 
 # Third-party libraries
@@ -57,11 +58,12 @@ class FuzzyCat:
         the final set of fuzzy clusters.
     checkpoint : `bool`, default = False
         Whether to save the cluster file names, pairs, and edges arrays to the 
-        directory.
-    workers : `int`, default = 8
-        The number of processors used in parallelised computations. If `workers`
-        is set to -1, then FuzzyCat will use all processors available.
-        Otherwise, `workers` must be a value between 1 and N_cpu.
+        directory so that less work is needed if FuzzyCat is run again.
+    maxUsedMemoryFraction : `float`, default = 0.7
+        The maximum fraction of the available memory that FuzzyCat is allowed to
+        use. If FuzzyCat uses more than this fraction of the available memory,
+        then it will unload some of the cluster files from memory. This is to
+        prevent FuzzyCat from using too much memory and crashing the system.
     verbose : `int`, default = 0
         The verbosity of the FuzzyCat class. If `verbose` is set to 0, then
         FuzzyCat will not report any of its activity. Increasing `verbose` will
@@ -113,7 +115,7 @@ class FuzzyCat:
         `stabilitiesGroups[i]` corresponds to group `i` in `groups`.
     """
 
-    def __init__(self, nSamples, nPoints, directoryName = None, minIntraJaccardIndex = 0.5, maxInterJaccardIndex = 0.5, minStability = 0.5, checkpoint = False, workers = 8, verbose = 0):
+    def __init__(self, nSamples, nPoints, directoryName = None, minIntraJaccardIndex = 0.5, maxInterJaccardIndex = 0.5, minStability = 0.5, checkpoint = False, maxUsedMemoryFraction = 0.7, verbose = 0):
         check_directoryName = (isinstance(directoryName, str) and directoryName != "" and os.path.exists(directoryName)) or directoryName is None
         assert check_directoryName, "Parameter 'directoryName' must be a string and must exist!"
         if directoryName is None: directoryName = os.getcwd()
@@ -144,10 +146,10 @@ class FuzzyCat:
         assert check_checkpoint, "Parameter 'checkpoint' must be a boolean!"
         self.checkpoint = checkpoint
 
-        check_workers = issubclass(type(workers), (int, np.integer)) and (1 <= workers or workers == -1)
-        assert check_workers, f"Parameter 'workers' must be set as either '-1' or needs to be an integer that is >= 1 (values > N_cpu will be set to N_cpu)!"
-        os.environ["OMP_NUM_THREADS"] = f"{min(workers, os.cpu_count())}" if workers != -1 else f"{os.cpu_count()}"
-        self.workers = workers
+        check_maxUsedMemoryFraction = issubclass(type(maxUsedMemoryFraction), (float, np.floating)) and 0 < maxUsedMemoryFraction <= 1
+        assert check_maxUsedMemoryFraction, "Parameter 'maxUsedMemoryFraction' must be a float in the interval (0, 1]!"
+        self.maxUsedMemoryFraction = maxUsedMemoryFraction
+
         self.verbose = verbose
 
     def _printFunction(self, message, returnLine = True):
@@ -206,33 +208,35 @@ class FuzzyCat:
             self.clusterFileNames = np.load(self.directoryName + 'clusterFileNames.npy')
             self._pairs = np.load(self.directoryName + 'pairs.npy')
             self._edges = np.load(self.directoryName + 'edges.npy')
+            self.lazyLoader = [False for i in range(self.clusterFileNames.size)]
+            self.dataTypes = np.zeros(self.clusterFileNames.size, dtype = np.int8)
         else:
             # Get all cluster files in directory
             self.clusterFileNames = np.array([fileName for fileName in os.listdir(self.directoryName + 'Clusters/') if fileName.endswith('.npy')])
+            n_clusters = self.clusterFileNames.size
+            self._pairs, self._edges = self._initGraph(n_clusters)
 
             # Cycle through all pairs of clusters and compute their similarity
-            n_clusters = self.clusterFileNames.size
-            lazyLoad = [False for i in range(n_clusters)]
-            dTypes = np.zeros(n_clusters, dtype = np.int8)
-            self._pairs, self._edges = self._initGraph(n_clusters)
+            self.lazyLoader = [False for i in range(n_clusters)]
+            self.dataTypes = np.zeros(n_clusters, dtype = np.int8)
             for i in range(n_clusters):
                 for j in range(i + 1, n_clusters):
                     # Load clusters
-                    if lazyLoad[i] is False: lazyLoad[i], dTypes[i] = self.readClusterFile(self.directoryName + 'Clusters/' + self.clusterFileNames[i])
-                    if lazyLoad[j] is False: lazyLoad[j], dTypes[j] = self.readClusterFile(self.directoryName + 'Clusters/' + self.clusterFileNames[j])
+                    cluster_i, dataType_i = self.retrieveCluster(i, requires = j)
+                    cluster_j, dataType_j = self.retrieveCluster(j, requires = i)
 
                     # Calculate the similarity between clusters i and j
-                    if dTypes[i] == dTypes[j] == 1: self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._jaccardIndex_njit(lazyLoad[i], lazyLoad[j], self.nPoints)
-                    elif dTypes[i] == dTypes[j]:
-                        self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(lazyLoad[i], lazyLoad[j])
+                    if dataType_i == dataType_j == 1: self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._jaccardIndex_njit(cluster_i, cluster_j, self.nPoints)
+                    elif dataType_i == dataType_j:
+                        self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(cluster_i, cluster_j)
                     else:
                         clusterFloating = np.zeros(self.nPoints)
-                        if dTypes[i] == 1:
-                            clusterFloating[lazyLoad[i]] = 1
-                            self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(clusterFloating, lazyLoad[j])
+                        if dataType_i == 1:
+                            clusterFloating[cluster_i] = 1
+                            self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(clusterFloating, cluster_j)
                         else:
-                            clusterFloating[lazyLoad[j]] = 1
-                            self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(lazyLoad[i], clusterFloating)
+                            clusterFloating[cluster_j] = 1
+                            self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(cluster_i, clusterFloating)
                         
             # Save arrays
             if self.checkpoint:
@@ -242,12 +246,28 @@ class FuzzyCat:
 
         self._similarityMatrixTime = time.perf_counter() - start
     
-    def readClusterFile(self, fileName):
-        cluster = np.load(fileName)
-        if issubclass(cluster.dtype.type, np.integer): dType = 1
-        elif issubclass(cluster.dtype.type, np.floating): dType = 2
-        else: assert False, f"Cluster from file '{fileName}' is of {cluster.dtype.type} data type (must be integer or floating)!"
-        return cluster, dType
+    def retrieveCluster(self, index, requires = None):
+        cluster, dataType = self.lazyLoader[index], self.dataTypes[index]
+        if cluster is False:
+            fileName = self.directoryName + 'Clusters/' + self.clusterFileNames[index]
+            fileSize = os.path.getsize(fileName)
+            i = 0
+            memObj = psutil.virtual_memory()
+            while memObj.available - fileSize < (1 - self.maxUsedMemoryFraction)*memObj.total:
+                if self.lazyLoader[i] is not False and i != index and i != requires:
+                    self.approxMemoryUsage -= self.lazyLoader[i].nbytes
+                    self.lazyLoader[i] = False
+                    memObj = psutil.virtual_memory()
+                i += 1
+                if i >= self.clusterFileNames.size:
+                    assert requires is None, f"Not enough available memory to load cluster files {fileName} and {self.lazyLoad[requires]} at the same time!"
+                    assert False, f"Not enough available memory to load cluster file {fileName}!"
+            cluster = np.load(fileName)
+            if issubclass(cluster.dtype.type, (int, np.integer)): dataType = 1
+            elif issubclass(cluster.dtype.type, (float, np.floating)): dataType = 2
+            else: assert False, f"Cluster from file '{fileName}' is of {cluster.dtype.type} data type (must be integer or floating)!"
+            self.lazyLoader[index], self.dataTypes[index] = cluster, dataType
+        return cluster, dataType
     
     @staticmethod
     @njit()
@@ -483,17 +503,17 @@ class FuzzyCat:
             baseNames = np.char.add(np.char.rstrip(self.clusterFileNames, '.npy'), '-')
 
             # Cycle through all clusters and adjust membership probabilities of each point
-            for i, clstFileName_i in enumerate(self.clusterFileNames):
+            for i in range(self.clusterFileNames.size):
                 whichFC_cluster = whichFuzzyCluster[i]
                 if whichFC_cluster != -1:
                     # Load cluster
-                    cluster, dType = self.readClusterFile(self.directoryName + 'Clusters/' + clstFileName_i)
+                    cluster, dataType = self.retrieveCluster(i)
 
                     # Find the parent of cluster 'i' from within the same sample
                     whichFC_parents = np.unique(whichFuzzyCluster[np.char.startswith(baseNames[i], baseNames)])
 
                     # Update memberships
-                    if dType == 1: self._updateMemberships_njit(self.memberships, self._hierarchyCorrection, self.fuzzyHierarchy, cluster, whichFC_cluster, whichFC_parents, sampleWeights[self._sampleNumbers[i]])
+                    if dataType == 1: self._updateMemberships_njit(self.memberships, self._hierarchyCorrection, self.fuzzyHierarchy, cluster, whichFC_cluster, whichFC_parents, sampleWeights[self._sampleNumbers[i]])
                     else: self._updateWeightedMemberships_njit(self.memberships, self._hierarchyCorrection, self.fuzzyHierarchy, cluster, whichFC_cluster, whichFC_parents, sampleWeights[self._sampleNumbers[i]])
             # Normalise memberships
             normFactor = self.nSamples*self.stabilities.reshape(-1, 1)
