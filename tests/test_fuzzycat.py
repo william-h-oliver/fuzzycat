@@ -93,17 +93,17 @@ def test_fuzzycat():
     baseNames = np.char.add(np.char.rstrip(fc.clusterFileNames, '.npy'), '-')
 
     # _updateMemberships_njit() and _updateWeightedMemberships_njit()
-    for i, clstFileName_i in enumerate(fc.clusterFileNames):
+    for i in range(fc.clusterFileNames.size):
         whichFC_cluster = whichFuzzyCluster[i]
         if whichFC_cluster != -1:
             # Load cluster
-            cluster, dType = fc.readClusterFile(fc.directoryName + 'Clusters/' + clstFileName_i)
+            cluster, dataType = fc.readClusterFile(i)
 
             # Find the parent of cluster 'i' from within the same sample
             whichFC_parents = np.unique(whichFuzzyCluster[np.char.startswith(baseNames[i], baseNames)])
 
             # Update memberships
-            if dType == 1:
+            if dataType == 1:
                 fc._updateMemberships_njit.py_func(memberships, _hierarchyCorrection, fuzzyHierarchy, cluster, whichFC_cluster, whichFC_parents, sampleWeights[fc._sampleNumbers[i]])
                 try:
                     clusterFloating = np.zeros(fc.nPoints)
