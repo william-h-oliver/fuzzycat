@@ -59,11 +59,6 @@ class FuzzyCat:
     checkpoint : `bool`, default = False
         Whether to save the cluster file names, pairs, and edges arrays to the 
         directory so that less work is needed if FuzzyCat is run again.
-    maxUsedMemoryFraction : `float`, default = 0.7
-        The maximum fraction of the available memory that FuzzyCat is allowed to
-        use. If FuzzyCat uses more than this fraction of the available memory,
-        then it will unload some of the cluster files from memory. This is to
-        prevent FuzzyCat from using too much memory and crashing the system.
     verbose : `int`, default = 0
         The verbosity of the FuzzyCat class. If `verbose` is set to 0, then
         FuzzyCat will not report any of its activity. Increasing `verbose` will
@@ -115,7 +110,7 @@ class FuzzyCat:
         `stabilitiesGroups[i]` corresponds to group `i` in `groups`.
     """
 
-    def __init__(self, nSamples, nPoints, directoryName = None, minIntraJaccardIndex = 0.5, maxInterJaccardIndex = 0.5, minStability = 0.5, checkpoint = False, maxUsedMemoryFraction = 0.7, verbose = 0):
+    def __init__(self, nSamples, nPoints, directoryName = None, minIntraJaccardIndex = 0.5, maxInterJaccardIndex = 0.5, minStability = 0.5, checkpoint = False, verbose = 0):
         check_directoryName = (isinstance(directoryName, str) and directoryName != "" and os.path.exists(directoryName)) or directoryName is None
         assert check_directoryName, "Parameter 'directoryName' must be a string and must exist!"
         if directoryName is None: directoryName = os.getcwd()
@@ -145,10 +140,6 @@ class FuzzyCat:
         check_checkpoint = isinstance(checkpoint, bool)
         assert check_checkpoint, "Parameter 'checkpoint' must be a boolean!"
         self.checkpoint = checkpoint
-
-        check_maxUsedMemoryFraction = issubclass(type(maxUsedMemoryFraction), (float, np.floating)) and 0 < maxUsedMemoryFraction <= 1
-        assert check_maxUsedMemoryFraction, "Parameter 'maxUsedMemoryFraction' must be a float in the interval (0, 1]!"
-        self.maxUsedMemoryFraction = maxUsedMemoryFraction
 
         self.verbose = verbose
 
@@ -222,8 +213,8 @@ class FuzzyCat:
             for i in range(n_clusters):
                 for j in range(i + 1, n_clusters):
                     # Load clusters
-                    cluster_i, dataType_i = self.retrieveCluster(i, requires = j)
-                    cluster_j, dataType_j = self.retrieveCluster(j, requires = i)
+                    cluster_i, dataType_i = self.retrieveCluster(i)
+                    cluster_j, dataType_j = self.retrieveCluster(j)
 
                     # Calculate the similarity between clusters i and j
                     if dataType_i == dataType_j == 1: self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._jaccardIndex_njit(cluster_i, cluster_j, self.nPoints)
@@ -246,22 +237,10 @@ class FuzzyCat:
 
         self._similarityMatrixTime = time.perf_counter() - start
     
-    def retrieveCluster(self, index, requires = None):
+    def retrieveCluster(self, index):
         cluster, dataType = self.lazyLoader[index], self.dataTypes[index]
         if cluster is False:
             fileName = self.directoryName + 'Clusters/' + self.clusterFileNames[index]
-            fileSize = os.path.getsize(fileName)
-            i = 0
-            memObj = psutil.virtual_memory()
-            while memObj.available - fileSize < (1 - self.maxUsedMemoryFraction)*memObj.total:
-                if self.lazyLoader[i] is not False and i != index and i != requires:
-                    self.approxMemoryUsage -= self.lazyLoader[i].nbytes
-                    self.lazyLoader[i] = False
-                    memObj = psutil.virtual_memory()
-                i += 1
-                if i >= self.clusterFileNames.size:
-                    assert requires is None, f"Not enough available memory to load cluster files {fileName} and {self.lazyLoad[requires]} at the same time!"
-                    assert False, f"Not enough available memory to load cluster file {fileName}!"
             cluster = np.load(fileName)
             if issubclass(cluster.dtype.type, (int, np.integer)): dataType = 1
             elif issubclass(cluster.dtype.type, (float, np.floating)): dataType = 2
@@ -465,10 +444,10 @@ class FuzzyCat:
         interJaccardIndicesGroups = np.concatenate((interJI_leq, interJI_geq))
 
         # Calculate existence probabilities
-        stabilitiesGroups = np.empty(groups.shape[0], dtype = np.int32)
+        stabilitiesGroups = np.empty(groups.shape[0], dtype = np.int64)
         for i, g in enumerate(groups):
             stabilitiesGroups[i] = np.unique(sampleNumbers[ordering[g[0]:g[1]]]).size
-        stabilitiesGroups = stabilitiesGroups.astype(np.float32)/nSamples
+        stabilitiesGroups = stabilitiesGroups.astype(np.float64)/nSamples
 
         return jaccardIndices, ordering, groups, intraJaccardIndicesGroups, interJaccardIndicesGroups, stabilitiesGroups
 
