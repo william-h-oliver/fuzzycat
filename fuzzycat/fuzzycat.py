@@ -9,7 +9,6 @@ License: MIT
 
 # Standard libraries
 import os
-import psutil
 import time
 
 # Third-party libraries
