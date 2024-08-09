@@ -97,7 +97,7 @@ FuzzyPlots.plotFuzzyLabelsOnX(fc, P, membersOnly = True)
   <img src="https://raw.githubusercontent.com/william-h-oliver/fuzzycat/main/images/readme/Fuzzy_Labels_clustered_only.png" alt="AstroLink clusters with progagated uncertainties."/>
 </p>
 
-... which shows that the effect of these uncertainties on the AstroLink clusters is to give them *fuzzy borders* &mdash; indicated by the colours of the points fading to black and/or mixing around the boundaries of these clusters.
+... which shows that the effect of these uncertainties on the AstroLink clusters is to give them *fuzzy borders* &mdash; indicated by the colours of the points fading away and/or mixing around the boundaries of these clusters.
 
 ## Development installation
 
