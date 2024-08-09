@@ -25,7 +25,7 @@ FuzzyCat can be easily applied to any series of clusters that have been found fr
 ### Getting some fuzzy data
 To demonstrate this, we first need some data...
 
-```
+```python
 import numpy as np
 import sklearn.datasets as data
 
@@ -51,7 +51,7 @@ In our scenario, we can generate the different representations by creating rando
 
 The code to do this is simply...
 
-```
+```python
 from fuzzycat import FuzzyData
 
 FuzzyData.clusteringsFromRandomSamples(P, covP)
@@ -72,7 +72,7 @@ We have now generated various clusterings from our fuzzy data, and we can see th
 
 We just need to tell it that we have `nSamples = 100` clusterings of `nPoints = P.shape[0]` (= 4000) points and then run it...
 
-```
+```python
 from fuzzycat import FuzzyCat
 
 nSamples, nPoints = 100, P.shape[0]
@@ -85,16 +85,16 @@ fc.run()
 ### Visualising the soft clusters
 With the soft clustering found, we would like to see what it looks like. This is easy, because FuzzyCat also comes equipped with some useful plotting functions. As such, we can visualise the soft structure with...
 
-```
+```python
 from fuzzycat import FuzzyPlots
 
-FuzzyPlots.plotFuzzyLabelsOnX(fc, P)
+FuzzyPlots.plotFuzzyLabelsOnX(fc, P, clusteredOnly = True)
 ```
 
-... which produces a figure whereby the points of `P` are coloured according to their membership within each of the fuzzy clusters. For this scenario, we get...
+... which produces a figure whereby the colour and alpha value of the points of `P` are defined according to their membership within each of the fuzzy clusters. For this scenario, we get...
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/william-h-oliver/fuzzycat/main/images/readme/Fuzzy_Labels.png" alt="AstroLink clusters with progagated uncertainties."/>
+  <img src="https://raw.githubusercontent.com/william-h-oliver/fuzzycat/main/images/readme/Fuzzy_Labels_clustered_only.png" alt="AstroLink clusters with progagated uncertainties."/>
 </p>
 
 ... which shows that the effect of these uncertainties on the AstroLink clusters is to give them *fuzzy borders* &mdash; indicated by the colours of the points fading to black and/or mixing around the boundaries of these clusters.

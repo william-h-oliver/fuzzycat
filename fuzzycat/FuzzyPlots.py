@@ -152,7 +152,7 @@ def plotMemberships(fc, figsize = (8, 8), bins = None, save = True, show = False
     plt.close()
     gc.collect()
 
-def plotFuzzyLabelsOnX(fc, X, figsize = (8, 8), markerSize = 5, save = True, show = False, dpi = None):
+def plotFuzzyLabelsOnX(fc, X, clusteredOnly = False, figsize = (8, 8), markerSize = 5, save = True, show = False, dpi = None):
     """Creates a scatter plot of the data points in `X` and colours them
     according to the fuzzy clusters that have been determined by FuzzyCat.
 
@@ -184,8 +184,8 @@ def plotFuzzyLabelsOnX(fc, X, figsize = (8, 8), markerSize = 5, save = True, sho
     # Create a figure and axis
     if X.shape[1] == 2:
         fig, ax = plt.subplots(figsize = figsize)
-        colours = np.zeros((X.shape[0], 3))
-        colsArr = np.array([col.to_rgb(f"C{i%10}") for i in range(10)])
+        colours = np.zeros((X.shape[0], 4))
+        colsArr = np.array([col.to_rgba(f"C{i%10}") for i in range(10)])
     elif X.shape[1] == 3:
         fig = plt.figure(figsize = figsize)
         ax = fig.add_subplot(111, projection = '3d')
@@ -195,6 +195,7 @@ def plotFuzzyLabelsOnX(fc, X, figsize = (8, 8), markerSize = 5, save = True, sho
 
     for i, (membershipArr, stability) in enumerate(zip(fc.memberships_flat, fc.stabilities)):
         colours += stability*membershipArr[:, np.newaxis]*colsArr[i%10]
+    if not clusteredOnly: colours[:, -1] = 1
     ax.scatter(*X.T, s = markerSize, facecolor = colours, edgecolor = 'none', zorder = 1)
 
     # Tidy up
