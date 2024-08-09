@@ -152,7 +152,7 @@ def plotMemberships(fc, figsize = (8, 8), bins = None, save = True, show = False
     plt.close()
     gc.collect()
 
-def plotFuzzyLabelsOnX(fc, X, clusteredOnly = False, figsize = (8, 8), markerSize = 5, save = True, show = False, dpi = None):
+def plotFuzzyLabelsOnX(fc, X, membersOnly = False, figsize = (8, 8), markerSize = 5, save = True, show = False, dpi = None):
     """Creates a scatter plot of the data points in `X` and colours them
     according to the fuzzy clusters that have been determined by FuzzyCat.
 
@@ -182,20 +182,18 @@ def plotFuzzyLabelsOnX(fc, X, clusteredOnly = False, figsize = (8, 8), markerSiz
     assert check_X, "Parameter 'X' must be a numpy array that is a 2D or 3D representation of the fuzzy data used for clustering!"
 
     # Create a figure and axis
-    if X.shape[1] == 2:
-        fig, ax = plt.subplots(figsize = figsize)
-        colours = np.zeros((X.shape[0], 4))
-        colsArr = np.array([col.to_rgba(f"C{i%10}") for i in range(10)])
-    elif X.shape[1] == 3:
-        fig = plt.figure(figsize = figsize)
-        ax = fig.add_subplot(111, projection = '3d')
-        colours = np.zeros((X.shape[0], 4))
-        colsArr = np.array([col.to_rgba(f"C{i%10}") for i in range(10)])
+    if X.shape[1] == 2: fig, ax = plt.subplots(figsize = figsize)
+    elif X.shape[1] == 3: fig, ax = plt.subplots(figsize = figsize, subplot_kw = {'projection': '3d'})
     else: raise ValueError("Parameter 'X' must represent 2D or 3D data points!")
 
+    # Prepare the colours
+    colours = np.zeros((X.shape[0], 4))
+    colsArr = np.array([col.to_rgba(f"C{i%10}") for i in range(10)])
     for i, (membershipArr, stability) in enumerate(zip(fc.memberships_flat, fc.stabilities)):
         colours += stability*membershipArr[:, np.newaxis]*colsArr[i%10]
-    if not clusteredOnly: colours[:, -1] = 1
+    if not membersOnly: colours[:, -1] = 1
+
+    # Plot the data points
     ax.scatter(*X.T, s = markerSize, facecolor = colours, edgecolor = 'none', zorder = 1)
 
     # Tidy up

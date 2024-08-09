@@ -88,7 +88,7 @@ With the soft clustering found, we would like to see what it looks like. This is
 ```python
 from fuzzycat import FuzzyPlots
 
-FuzzyPlots.plotFuzzyLabelsOnX(fc, P, clusteredOnly = True)
+FuzzyPlots.plotFuzzyLabelsOnX(fc, P, membersOnly = True)
 ```
 
 ... which produces a figure whereby the colour and alpha value of the points of `P` are defined according to their membership within each of the fuzzy clusters. For this scenario, we get...
