@@ -231,7 +231,7 @@ class FuzzyCat:
                             clusterFloating[self.lazyLoader[j]] = 1
                             self._weightedJaccardIndex_njit(self.lazyLoader[i], clusterFloating, self._edges, k)
                 if (k + 1)%(self._edges.size//100) == 0:
-                    self._printFunction(f"Computing similarities... {100*k//self._edges.size + 1}%        ", priority = 2, returnLine = False)
+                    self._printFunction(f"Computing similarities... {100*k//self._edges.size + 1}%        ", priority = 2)
                         
             # Save arrays
             if self.checkpoint:
@@ -263,6 +263,7 @@ class FuzzyCat:
             self.lazyLoader[index], self.dataTypes[index] = cluster, dataType
         if returnCluster: return cluster, dataType
 
+    @staticmethod
     @njit()
     def _findDescendents_njit(clusterFileNames):
         # Find sample numbers and cluster IDs
@@ -270,16 +271,20 @@ class FuzzyCat:
         clusterIDs = np.empty_like(clusterFileNames)
         for i, clusterFileName in enumerate(clusterFileNames):
             splitName = clusterFileName.split('_')
-            sampleNumbers[i] = np.uint32(splitName[0])
-            clusterIDs[i] = splitName.rstrip('.npy') + '-'
+            sampleNumbers[i] = splitName[0]
+            clusterIDs[i] = splitName[1].rstrip('.npy') + '-'
         # Categorise the clusters from the same sample into descendents and not descendents
-        descendents = [[0 for i in range(0)] for i in range(clusterFileNames.size)]
-        notDescendents = [[0 for i in range(0)] for i in range(clusterFileNames.size)]
+        descendents = [np.array([0 for i in range(0)], dtype = np.uint32) for i in range(clusterFileNames.size)]
+        notDescendents = [np.array([0 for i in range(0)], dtype = np.uint32) for i in range(clusterFileNames.size)]
         for i, (sampleNumber_i, clusterID_i) in enumerate(zip(sampleNumbers, clusterIDs)):
+            descendents_i = [0 for i in range(0)]
+            notDescendents_i = [0 for i in range(0)]
             for j, (sampleNumber_j, clusterID_j) in enumerate(zip(sampleNumbers, clusterIDs)):
                 if sampleNumber_i == sampleNumber_j:
-                    if clusterID_j.startswith(clusterID_i): descendents[i].append(j)
-                    else: notDescendents[i].append(j)
+                    if clusterID_j.startswith(clusterID_i): descendents_i.append(j)
+                    else: notDescendents_i.append(j)
+            descendents[i] = np.array(descendents_i, dtype = np.uint32)
+            notDescendents[i] = np.array(notDescendents_i, dtype = np.uint32)
         return descendents, notDescendents
 
     @staticmethod
@@ -288,21 +293,27 @@ class FuzzyCat:
         counts_c1 = np.zeros(nPoints, dtype = np.bool_)
         counts_c1[c1] = 1
         intersection = counts_c1[c2].sum()
-
+         # Avoid comparisons between clusters that will have smaller intersections
         c1IsSmaller = c1.size < c2.size
-        if intersection == c1.size*c1IsSmaller + c2.size*(1 - c1IsSmaller): # Avoid comparisons between clusters that will have smaller intersections
-            for desc in descendents[i*c1IsSmaller + j*(1 - c1IsSmaller)]:
-                for notDesc in notDescendents[j*c1IsSmaller + i*(1 - c1IsSmaller)] + [j*c1IsSmaller + i*(1 - c1IsSmaller)]:
+        if intersection == c1.size*c1IsSmaller + c2.size*(1 - c1IsSmaller):
+            whichDesc = i*c1IsSmaller + j*(1 - c1IsSmaller)
+            whichNotDesc = j*c1IsSmaller + i*(1 - c1IsSmaller)
+            for desc in descendents[whichDesc]:
+                for notDesc in notDescendents[whichNotDesc]:
                     descIsSmaller = desc < notDesc
                     kCross = (desc*(2*_edges.size - desc - 1)//2 + notDesc - desc - 1)*descIsSmaller + (notDesc*(2*_edges.size - notDesc - 1)//2 + desc - notDesc - 1)*(1 - descIsSmaller)
                     _edges[kCross] = 0.0
-        elif intersection == 0: # Avoid comparisons between clusters that will not intersect
+                notDesc = whichNotDesc
+                descIsSmaller = desc < notDesc
+                kCross = (desc*(2*_edges.size - desc - 1)//2 + notDesc - desc - 1)*descIsSmaller + (notDesc*(2*_edges.size - notDesc - 1)//2 + desc - notDesc - 1)*(1 - descIsSmaller)
+                _edges[kCross] = 0.0
+        if intersection == 0:
             for di in descendents[i]:
                 for dj in descendents[j]:
                     diIsSmaller = di < dj
                     kCross = (di*(2*_edges.size - di - 1)//2 + dj - di - 1)*diIsSmaller + (dj*(2*_edges.size - dj - 1)//2 + di - dj - 1)*(1 - diIsSmaller)
                     _edges[kCross] = 0.0
-
+        
         # Save Jaccard index between c1 and c2
         _edges[k] = intersection/(c1.size + c2.size - intersection)
 
