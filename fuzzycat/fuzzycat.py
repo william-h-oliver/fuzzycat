@@ -142,8 +142,8 @@ class FuzzyCat:
 
         self.verbose = verbose
 
-    def _printFunction(self, message, returnLine = True):
-        if self.verbose:
+    def _printFunction(self, message, priority = 1, returnLine = True):
+        if self.verbose >= priority:
             if returnLine: print(f"FuzzyCat: {message}\r", end = '')
             else: print(f"FuzzyCat: {message}")
     
@@ -170,9 +170,9 @@ class FuzzyCat:
 
         self._totalTime = time.perf_counter() - begin
         if self.verbose > 1:
-            self._printFunction(f"Similarities time  | {100*self._similarityMatrixTime/self._totalTime:.2f}%    ", returnLine = False)
-            self._printFunction(f"Aggregation time   | {100*self._aggregationTime/self._totalTime:.2f}%    ", returnLine = False)
-            self._printFunction(f"Extraction time    | {100*self._extractFuzzyClustersTime/self._totalTime:.2f}%    ", returnLine = False)
+            self._printFunction(f"Similarities time  | {100*self._similarityMatrixTime/self._totalTime:.2f}%    ", priority = 2, returnLine = False)
+            self._printFunction(f"Aggregation time   | {100*self._aggregationTime/self._totalTime:.2f}%    ", priority = 2, returnLine = False)
+            self._printFunction(f"Extraction time    | {100*self._extractFuzzyClustersTime/self._totalTime:.2f}%    ", priority =  2, returnLine = False)
         self._printFunction(f"Completed          | {time.strftime('%Y-%m-%d %H:%M:%S')}       ", returnLine = False)
 
     def computeSimilarities(self):
@@ -185,7 +185,7 @@ class FuzzyCat:
         This method generates the `_pairs` and `_edges` attributes.
         """
 
-        if self.verbose > 1: self._printFunction('Computing similarities...        ')
+        self._printFunction('Computing similarities... 0%       ', priority = 2)
         start = time.perf_counter()
         
         # Check if arrays have been computed before
@@ -206,27 +206,29 @@ class FuzzyCat:
             n_clusters = self.clusterFileNames.size
             self._pairs, self._edges = self._initGraph(n_clusters)
 
-            # Cycle through all pairs of clusters and compute their similarity
+            # Load all clusters
             self.lazyLoader = [False for i in range(n_clusters)]
             self.dataTypes = np.zeros(n_clusters, dtype = np.int8)
             for i in range(n_clusters):
-                for j in range(i + 1, n_clusters):
-                    # Load clusters
-                    cluster_i, dataType_i = self.retrieveCluster(i)
-                    cluster_j, dataType_j = self.retrieveCluster(j)
-
-                    # Calculate the similarity between clusters i and j
-                    if dataType_i == dataType_j == 1: self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._jaccardIndex_njit(cluster_i, cluster_j, self.nPoints)
-                    elif dataType_i == dataType_j:
-                        self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(cluster_i, cluster_j)
+                self.retrieveCluster(i, returnCluster = False)
+            
+            # Cycle through all pairs of clusters and compute their similarity
+            for k, (i, j) in enumerate(self._pairs):
+                if self._edges[k] < 0:
+                    if self.dataTypes[i] == self.dataTypes[j] == 1: # Clusters i and j are both hard clusters
+                        self._jaccardIndex_njit(self.lazyLoader[i], self.lazyLoader[j], self.nPoints, self._edges, k, i, j)
+                    elif self.dataTypes[i] == self.dataTypes[j]: # Clusters i and j are both soft clusters
+                        self._weightedJaccardIndex_njit(self.lazyLoader[i], self.lazyLoader[j], self._edges, k)
                     else:
                         clusterFloating = np.zeros(self.nPoints)
-                        if dataType_i == 1:
-                            clusterFloating[cluster_i] = 1
-                            self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(clusterFloating, cluster_j)
-                        else:
-                            clusterFloating[cluster_j] = 1
-                            self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(cluster_i, clusterFloating)
+                        if self.dataTypes[i] == 1: # Cluster i is a hard cluster and cluster j is a soft cluster
+                            clusterFloating[self.lazyLoader[i]] = 1
+                            self._weightedJaccardIndex_njit(clusterFloating, self.lazyLoader[j], self._edges, k)
+                        else: # Cluster j is a hard cluster and cluster i is a soft cluster
+                            clusterFloating[self.lazyLoader[j]] = 1
+                            self._weightedJaccardIndex_njit(self.lazyLoader[i], clusterFloating, self._edges, k)
+                if (k + 1)%(self._edges.size//100) == 0:
+                    self._printFunction(f"Computing similarities... {100*k//self._edges.size + 1}%        ", priority = 2, returnLine = False)
                         
             # Save arrays
             if self.checkpoint:
@@ -236,7 +238,7 @@ class FuzzyCat:
 
         self._similarityMatrixTime = time.perf_counter() - start
     
-    def retrieveCluster(self, index):
+    def retrieveCluster(self, index, returnCluster = True):
         cluster, dataType = self.lazyLoader[index], self.dataTypes[index]
         if cluster is False:
             fileName = self.directoryName + 'Clusters/' + self.clusterFileNames[index]
@@ -245,31 +247,32 @@ class FuzzyCat:
             elif issubclass(cluster.dtype.type, (float, np.floating)): dataType = 2
             else: assert False, f"Cluster from file '{fileName}' is of {cluster.dtype.type} data type (must be integer or floating)!"
             self.lazyLoader[index], self.dataTypes[index] = cluster, dataType
-        return cluster, dataType
+        if returnCluster: return cluster, dataType
     
     @staticmethod
     @njit()
     def _initGraph(n):
         graphSize = n*(n - 1)//2
-        pairs = np.empty((graphSize, 2), dtype = np.uint32) # Might not need to compute this if i and j can be (efficiently) calculated from knowing the index of [i, j]
+        _pairs = np.empty((graphSize, 2), dtype = np.uint32)
         for i in range(n):
             for j in range(i + 1, n):
-                pairs[i*(2*n - i - 1)//2 + j - i - 1] = [i, j]
-        edges = np.zeros(graphSize, dtype = np.float32)
-        return pairs, edges
+                _pairs[i*(2*n - i - 1)//2 + j - i - 1] = [i, j]
+        _edges = -np.ones(graphSize, dtype = np.float32)
+        return _pairs, _edges
 
     @staticmethod
     @njit(fastmath = True)
-    def _jaccardIndex_njit(c1, c2, nPoints):
+    def _jaccardIndex_njit(c1, c2, nPoints, _edges, k, i, j):
         counts_c1 = np.zeros(nPoints, dtype = np.bool_)
         counts_c1[c1] = 1
         intersection = counts_c1[c2].sum()
-        return intersection/(c1.size + c2.size - intersection)
+        _edges[k] = intersection/(c1.size + c2.size - intersection)
+
     
     @staticmethod
     @njit(fastmath = True)
-    def _weightedJaccardIndex_njit(c1, c2):
-        return np.minimum(c1, c2).sum()/np.maximum(c1, c2).sum()
+    def _weightedJaccardIndex_njit(c1, c2, _edges, k):
+        _edges[k] = np.minimum(c1, c2).sum()/np.maximum(c1, c2).sum()
 
     def aggregate(self):
         """Aggregates the clusters together to form the ordered list whilst
@@ -289,7 +292,7 @@ class FuzzyCat:
         This method deletes the `_pairs` and '_edges' attributes.
         """
 
-        if self.verbose > 1: self._printFunction('Making fuzzy clusters...        ')
+        self._printFunction('Making fuzzy clusters...        ', priority = 2)
         start = time.perf_counter()
         self._sampleNumbers = np.array([np.uint32(splitFileName[0]) for splitFileName in np.char.split(self.clusterFileNames, '_', 1)])
         self.jaccardIndices, self.ordering, self.groups, self.intraJaccardIndicesGroups, self.interJaccardIndicesGroups, self.stabilitiesGroups = self._aggregate_njit(self._pairs, self._edges, self._sampleNumbers, self.nSamples)
@@ -456,20 +459,20 @@ class FuzzyCat:
         requirements.
 
         This method requires the `ordering`, `groups`, 
-        `intraJaccardIndicesGroups`, `interJaccardIndicesGroups`,
-        `stabilitiesGroups`, and `_sampleNumbers` attributes to have already 
-        been created, via the `aggregate()` method or otherwise. It also 
-        requires the `clusterFileNames` attribute to have already been created, 
-        via the `computeSimilarities` method or otherwise. In addition, this 
-        method requires the directory to contain a subdirectory called
-        'Clusters/' that contains the cluster files.
+        `intraJaccardIndicesGroups`, `interJaccardIndicesGroups`, and 
+        `stabilitiesGroups` attributes to have already been created, via the 
+        `aggregate()` method or otherwise. It also requires the 
+        `clusterFileNames` attribute to have already been created, via the 
+        `computeSimilarities` method or otherwise. In addition, this method 
+        requires the directory to contain a subdirectory called 'Clusters/' that 
+        contains the cluster files.
 
         This method generates the 'fuzzyClusters', `intraJaccardIndices`, 
         `interJaccardIndices`, `stabilities`, `memberships`,
         `memberships_flat`, and `fuzzyHierarchy` attributes.
         """
 
-        if self.verbose > 1: self._printFunction('Assigning probabilities...        ')
+        self._printFunction('Assigning probabilities...        ', priority = 2)
         start = time.perf_counter()
 
         # Extract fuzzy clusters and setup memberships and fuzzy hierarchy arrays
