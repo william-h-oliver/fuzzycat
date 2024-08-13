@@ -199,7 +199,7 @@ class FuzzyCat:
             self._pairs = np.load(self.directoryName + 'pairs.npy')
             self._edges = np.load(self.directoryName + 'edges.npy')
             self.lazyLoader = [False for i in range(self.clusterFileNames.size)]
-            self.dataTypes = np.zeros(self.clusterFileNames.size, dtype = np.int8)
+            self.dataTypes = np.zeros(self.clusterFileNames.size, dtype = np.bool_)
         else:
             # Get all cluster files in directory
             self.clusterFileNames = np.array([fileName for fileName in os.listdir(self.directoryName + 'Clusters/') if fileName.endswith('.npy')])
@@ -208,20 +208,23 @@ class FuzzyCat:
 
             # Load all clusters
             self.lazyLoader = [False for i in range(n_clusters)]
-            self.dataTypes = np.zeros(n_clusters, dtype = np.int8)
+            self.dataTypes = np.zeros(n_clusters, dtype = np.bool_)
             for i in range(n_clusters):
                 self.retrieveCluster(i, returnCluster = False)
+
+            # Find clusters that are and are not descendents of each other
+            descendents, notDescendents = self._findDescendents_njit(self.clusterFileNames)
             
             # Cycle through all pairs of clusters and compute their similarity
             for k, (i, j) in enumerate(self._pairs):
                 if self._edges[k] < 0:
-                    if self.dataTypes[i] == self.dataTypes[j] == 1: # Clusters i and j are both hard clusters
-                        self._jaccardIndex_njit(self.lazyLoader[i], self.lazyLoader[j], self.nPoints, self._edges, k, i, j)
-                    elif self.dataTypes[i] == self.dataTypes[j]: # Clusters i and j are both soft clusters
+                    if self.dataTypes[i] and self.dataTypes[j]: # Clusters i and j are both hard clusters
+                        self._jaccardIndex_njit(self.lazyLoader[i], self.lazyLoader[j], self.nPoints, self._edges, k, i, j, descendents, notDescendents)
+                    elif not (self.dataTypes[i] or self.dataTypes[j]): # Clusters i and j are both soft clusters
                         self._weightedJaccardIndex_njit(self.lazyLoader[i], self.lazyLoader[j], self._edges, k)
                     else:
                         clusterFloating = np.zeros(self.nPoints)
-                        if self.dataTypes[i] == 1: # Cluster i is a hard cluster and cluster j is a soft cluster
+                        if self.dataTypes[i]: # Cluster i is a hard cluster and cluster j is a soft cluster
                             clusterFloating[self.lazyLoader[i]] = 1
                             self._weightedJaccardIndex_njit(clusterFloating, self.lazyLoader[j], self._edges, k)
                         else: # Cluster j is a hard cluster and cluster i is a soft cluster
@@ -238,17 +241,6 @@ class FuzzyCat:
 
         self._similarityMatrixTime = time.perf_counter() - start
     
-    def retrieveCluster(self, index, returnCluster = True):
-        cluster, dataType = self.lazyLoader[index], self.dataTypes[index]
-        if cluster is False:
-            fileName = self.directoryName + 'Clusters/' + self.clusterFileNames[index]
-            cluster = np.load(fileName)
-            if issubclass(cluster.dtype.type, (int, np.integer)): dataType = 1
-            elif issubclass(cluster.dtype.type, (float, np.floating)): dataType = 2
-            else: assert False, f"Cluster from file '{fileName}' is of {cluster.dtype.type} data type (must be integer or floating)!"
-            self.lazyLoader[index], self.dataTypes[index] = cluster, dataType
-        if returnCluster: return cluster, dataType
-    
     @staticmethod
     @njit()
     def _initGraph(n):
@@ -260,15 +252,60 @@ class FuzzyCat:
         _edges = -np.ones(graphSize, dtype = np.float32)
         return _pairs, _edges
 
+    def retrieveCluster(self, index, returnCluster = True):
+        cluster, dataType = self.lazyLoader[index], self.dataTypes[index]
+        if cluster is False:
+            fileName = self.directoryName + 'Clusters/' + self.clusterFileNames[index]
+            cluster = np.load(fileName) # to add memmap support here
+            if issubclass(cluster.dtype.type, (int, np.integer)): dataType = 1
+            elif issubclass(cluster.dtype.type, (float, np.floating)): dataType = 0
+            else: assert False, f"Cluster from file '{fileName}' is of {cluster.dtype.type} data type (must be integer or floating)!"
+            self.lazyLoader[index], self.dataTypes[index] = cluster, dataType
+        if returnCluster: return cluster, dataType
+
+    @njit()
+    def _findDescendents_njit(clusterFileNames):
+        # Find sample numbers and cluster IDs
+        sampleNumbers = np.empty_like(clusterFileNames)
+        clusterIDs = np.empty_like(clusterFileNames)
+        for i, clusterFileName in enumerate(clusterFileNames):
+            splitName = clusterFileName.split('_')
+            sampleNumbers[i] = np.uint32(splitName[0])
+            clusterIDs[i] = splitName.rstrip('.npy') + '-'
+        # Categorise the clusters from the same sample into descendents and not descendents
+        descendents = [[0 for i in range(0)] for i in range(clusterFileNames.size)]
+        notDescendents = [[0 for i in range(0)] for i in range(clusterFileNames.size)]
+        for i, (sampleNumber_i, clusterID_i) in enumerate(zip(sampleNumbers, clusterIDs)):
+            for j, (sampleNumber_j, clusterID_j) in enumerate(zip(sampleNumbers, clusterIDs)):
+                if sampleNumber_i == sampleNumber_j:
+                    if clusterID_j.startswith(clusterID_i): descendents[i].append(j)
+                    else: notDescendents[i].append(j)
+        return descendents, notDescendents
+
     @staticmethod
     @njit(fastmath = True)
-    def _jaccardIndex_njit(c1, c2, nPoints, _edges, k, i, j):
+    def _jaccardIndex_njit(c1, c2, nPoints, _edges, k, i, j, descendents, notDescendents):
         counts_c1 = np.zeros(nPoints, dtype = np.bool_)
         counts_c1[c1] = 1
         intersection = counts_c1[c2].sum()
+
+        c1IsSmaller = c1.size < c2.size
+        if intersection == c1.size*c1IsSmaller + c2.size*(1 - c1IsSmaller): # Avoid comparisons between clusters that will have smaller intersections
+            for desc in descendents[i*c1IsSmaller + j*(1 - c1IsSmaller)]:
+                for notDesc in notDescendents[j*c1IsSmaller + i*(1 - c1IsSmaller)] + [j*c1IsSmaller + i*(1 - c1IsSmaller)]:
+                    descIsSmaller = desc < notDesc
+                    kCross = (desc*(2*_edges.size - desc - 1)//2 + notDesc - desc - 1)*descIsSmaller + (notDesc*(2*_edges.size - notDesc - 1)//2 + desc - notDesc - 1)*(1 - descIsSmaller)
+                    _edges[kCross] = 0.0
+        elif intersection == 0: # Avoid comparisons between clusters that will not intersect
+            for di in descendents[i]:
+                for dj in descendents[j]:
+                    diIsSmaller = di < dj
+                    kCross = (di*(2*_edges.size - di - 1)//2 + dj - di - 1)*diIsSmaller + (dj*(2*_edges.size - dj - 1)//2 + di - dj - 1)*(1 - diIsSmaller)
+                    _edges[kCross] = 0.0
+
+        # Save Jaccard index between c1 and c2
         _edges[k] = intersection/(c1.size + c2.size - intersection)
 
-    
     @staticmethod
     @njit(fastmath = True)
     def _weightedJaccardIndex_njit(c1, c2, _edges, k):
