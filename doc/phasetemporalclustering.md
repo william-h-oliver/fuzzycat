@@ -4,7 +4,7 @@ A pressing and continually evolving sub-field of astrophysics is the study of ga
 
 In the context of simulated data, a typical approach is to use a halo finder (+ merger tree) code to find a catalogue of haloes and their merger tree &mdash; which are then analysed in terms of their physical properties. However, generally these codes are only tracking self-bound groups that satisfy a minimum overdensity threshold. If this threshold is too high then some haloes may be disregarded and if it is too low then some haloes can be lost in the unbinding procedure. Furthermore, these codes will not capture unbound groups that have been (or are in the process of being) tidally disrupted nor will they capture fleeting structure resulting from density waves and hydrodynamical effects. Not having these kinds of structures included in any subsequent analysis means that cosmological models are never constrained against these the existence of these structures in simulations &mdash; even though they are observed to be present in our Universe.
 
-The goal of this page is to serve as a tutorial and to highlight how the combination of [AstroLink][https://github.com/william-h-oliver/astrolink] and [FuzzyCat][https://github.com/william-h-oliver/fuzzycat] can be used as a powerful tool for studying galaxy formation and evolution. AstroLink is a general-purpose astrophysical clustering algorithm built for extracting meaningful hierarchical structure from point-cloud data defined over any feature space, and combined with FuzzyCat, this pipeline is able to find clusters that are both phase-space- and temporally-robust without making any strong assumptions about the kinds of galactic substructures that are (or are not) physically relevant for study within the field.
+The goal of this page is to serve as a tutorial and to highlight how the combination of [AstroLink](https://github.com/william-h-oliver/astrolink) and [FuzzyCat](https://github.com/william-h-oliver/fuzzycat) can be used as a powerful tool for studying galaxy formation and evolution. AstroLink is a general-purpose astrophysical clustering algorithm built for extracting meaningful hierarchical structure from point-cloud data defined over any feature space, and combined with FuzzyCat, this pipeline is able to find clusters that are both phase-space- and temporally-robust without making any strong assumptions about the kinds of galactic substructures that are (or are not) physically relevant for study within the field.
 
 
 
@@ -353,7 +353,7 @@ If we run the above pipeline on the stellar particles of each of our NIHAO-UHD g
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_2.79e12_zoom_6_rerun_stars_movie.mp4" alt="Phase-temporal clustering of the g2.79e12 NIHAO-UHD galaxy"/></video>
+    <video controls src="./_static/nihao_uhd_2.79e12_zoom_6_rerun_stars_movie.mp4" alt="Phase-temporal clustering of the g2.79e12 NIHAO-UHD galaxy", width = 90%/></video>
 
 
 ### g8.26e11
@@ -364,24 +364,24 @@ Movie coming...
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_g1.12e12_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g1.12e12 NIHAO-UHD galaxy"/></video>
+    <video controls src="./_static/nihao_uhd_g1.12e12_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g1.12e12 NIHAO-UHD galaxy", width = 90%/></video>
 
 ### g6.96e11
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_g6.96e11_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g6.96e11 NIHAO-UHD galaxy"/></video>
+    <video controls src="./_static/nihao_uhd_g6.96e11_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g6.96e11 NIHAO-UHD galaxy", width = 90%/></video>
 
 
 ### g7.08e11
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_g7.08e11_5x10_stars_movie.mp4" alt="Phase-temporal clustering of the g7.08e11 NIHAO-UHD galaxy"/></video>
+    <video controls src="./_static/nihao_uhd_g7.08e11_5x10_stars_movie.mp4" alt="Phase-temporal clustering of the g7.08e11 NIHAO-UHD galaxy", width = 90%/></video>
 
 
 ### g7.55e11
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_g7.55e11_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g7.55e11 NIHAO-UHD galaxy"/></video>
+    <video controls src="./_static/nihao_uhd_g7.55e11_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g7.55e11 NIHAO-UHD galaxy", width = 90%/></video>
