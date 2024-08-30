@@ -351,9 +351,10 @@ If we run the above pipeline on the stellar particles of each of our NIHAO-UHD g
 
 ### g2.79e12
 
-<p align="center">
-  <video src="./_static/nihao_uhd_2.79e12_zoom_6_rerun_stars_movie.mp4" alt="Phase-temporal clustering of the g2.79e12 NIHAO-UHD galaxy"/></video>
-</p>
+.. raw:: html
+
+<video controls src="./_static/nihao_uhd_2.79e12_zoom_6_rerun_stars_movie.mp4" alt="Phase-temporal clustering of the g2.79e12 NIHAO-UHD galaxy"/></video>
+
 
 ### g8.26e11
 
@@ -361,24 +362,26 @@ Movie coming
 
 ### g1.12e12
 
-<p align="center">
-  <video src="./_static/nihao_uhd_g1.12e12_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g1.12e12 NIHAO-UHD galaxy"/></video>
-</p>
+.. raw:: html
+
+<video src="./_static/nihao_uhd_g1.12e12_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g1.12e12 NIHAO-UHD galaxy"/></video>
 
 ### g6.96e11
 
-<p align="center">
-  <video src="./_static/nihao_uhd_g6.96e11_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g6.96e11 NIHAO-UHD galaxy"/></video>
-</p>
+.. raw:: html
+
+<video src="./_static/nihao_uhd_g6.96e11_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g6.96e11 NIHAO-UHD galaxy"/></video>
+
 
 ### g7.08e11
 
-<p align="center">
-  <video src="./_static/nihao_uhd_g7.08e11_5x10_stars_movie.mp4" alt="Phase-temporal clustering of the g7.08e11 NIHAO-UHD galaxy"/></video>
-</p>
+.. raw:: html
+
+<video src="./_static/nihao_uhd_g7.08e11_5x10_stars_movie.mp4" alt="Phase-temporal clustering of the g7.08e11 NIHAO-UHD galaxy"/></video>
+
 
 ### g7.55e11
 
-<p align="center">
-  <video src="./_static/nihao_uhd_g7.55e11_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g7.55e11 NIHAO-UHD galaxy"/></video>
-</p>
+.. raw:: html
+
+<video src="./_static/nihao_uhd_g7.55e11_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g7.55e11 NIHAO-UHD galaxy"/></video>
