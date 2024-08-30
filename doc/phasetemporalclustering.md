@@ -10,7 +10,7 @@ The goal of this page is to serve as a tutorial and to highlight how the combina
 
 ## Data: The NIHAO-UHD suite of cosmological hydrodynamical simulations
 
-
+In this tutorial we use simulations from the NIHAO-UHD suite [Buck et al. (2020)](https://doi.org/10.1093/mnras/stz3241) part of the Numerical Investigation of a Hundred Astronomical Objects (NIHAO) simulation suite ([Wang et al. 2015](https://doi.org/10.1093/mnras/stv1937)). These galaxies are chosen to reflect the most MW like galaxies in terms of mass, size and disk properties. Parts of the simulation suite have previously been used to study the build-up of MW's peanut-shaped bulge ([Buck et al. 2018](https://doi.org/10.3847/1538-4357/aaffd0), [Buck et al. 2019](https://doi.org/10.3847/1538-4357/aac890), investigate the stellar bar properties ([Hilmi et al. 2020](https://doi.org/10.1093/mnras/staa1934)), infer the MW's dark halo spin ([Obreja et al. 2022](https://doi.org/10.1051/0004-6361/202140983)), study the dwarf galaxy inventory of MW mass galaxies ([Buck et al. 2019](https://doi.org/10.1093/mnras/sty2913)) or investigate the age-metallicity relation of MW disk stars ([Lu et al. 2022](https://doi.org/10.1093/mnras/stac780)) including the chemical bimodality of disk stars ([Buck et al. 2020](https://doi.org/10.1093/mnras/stz3289)), their abundances ([Lu et al. 2022](https://doi.org/10.1093/mnras/stac610)) and the origin of very metal-poor stars inside the stellar disk ([Sestito et al. 2021](https://doi.org/10.1093/mnras/staa3479)]. Given their high resolution and complex cosmology hydrodynamical nature, the NIHAO-UHD offer the perfect opportunity to apply our clustering pipeline.
 
 
 ## Code: Running AstroLink and FuzzyCat on NIHAO-UHD stellar haloes
@@ -353,35 +353,35 @@ If we run the above pipeline on the stellar particles of each of our NIHAO-UHD g
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_2.79e12_zoom_6_rerun_stars_movie.mp4" alt="Phase-temporal clustering of the g2.79e12 NIHAO-UHD galaxy", width = 90%/></video>
+    <video controls src="./_static/nihao_uhd_2.79e12_zoom_6_rerun_stars_movie.mp4" alt="Phase-temporal clustering of the g2.79e12 NIHAO-UHD galaxy", width = 100%/></video>
 
 
 ### g8.26e11
 
-Movie coming...
+Movie coming soon...
 
 ### g1.12e12
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_g1.12e12_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g1.12e12 NIHAO-UHD galaxy", width = 90%/></video>
+    <video controls src="./_static/nihao_uhd_g1.12e12_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g1.12e12 NIHAO-UHD galaxy", width = 100%/></video>
 
 ### g6.96e11
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_g6.96e11_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g6.96e11 NIHAO-UHD galaxy", width = 90%/></video>
+    <video controls src="./_static/nihao_uhd_g6.96e11_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g6.96e11 NIHAO-UHD galaxy", width = 100%/></video>
 
 
 ### g7.08e11
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_g7.08e11_5x10_stars_movie.mp4" alt="Phase-temporal clustering of the g7.08e11 NIHAO-UHD galaxy", width = 90%/></video>
+    <video controls src="./_static/nihao_uhd_g7.08e11_5x10_stars_movie.mp4" alt="Phase-temporal clustering of the g7.08e11 NIHAO-UHD galaxy", width = 100%/></video>
 
 
 ### g7.55e11
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_g7.55e11_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g7.55e11 NIHAO-UHD galaxy", width = 90%/></video>
+    <video controls src="./_static/nihao_uhd_g7.55e11_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g7.55e11 NIHAO-UHD galaxy", width = 100%/></video>
