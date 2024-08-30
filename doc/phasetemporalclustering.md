@@ -347,7 +347,7 @@ if __name__ == '__main__':
 
 ## Analysis: Let's visualise the results!
 
-If we run the above pipeline on the stellar particles of each of our NIHAO-UHD galaxies, then we get the following movies in the following subsections.
+If we run the above pipeline on the stellar particles of each of our NIHAO-UHD galaxies, then we get the movies in the following subsections &mdash; which obviously contain a great deal of information on the nature of the formation and evolution of the respective galaxies.
 
 ### g2.79e12
 
