@@ -1,5 +1,6 @@
 # Welcome to FuzzyCat
 
+[![PyPI Version](https://img.shields.io/pypi/v/fuzzycategories.svg)](https://pypi.org/project/fuzzycategories/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/william-h-oliver/fuzzycat/ci.yml?branch=main)](https://github.com/william-h-oliver/fuzzycat/actions/workflows/ci.yml)
 [![Documentation Status](https://readthedocs.org/projects/fuzzycat/badge/)](https://fuzzycat.readthedocs.io/)
