@@ -44,7 +44,7 @@ P = np.vstack([background, moons, gauss_1, gauss_2])
 
 To make it fuzzy (in this scenario), we also need some description of the probability distribution of each point. The simplest version of this is to take the probability distributions as homogenous and spherically-symmetric 2-dimensional Gaussians. This would mean that the uncertainty of every point is described by Gaussian probability distributions, each having the same covariance matrix, i.e. $\sigma^2 I$ (where $\sigma$ is a constant and $I$ is the identity matrix).
 
-So let's simply take $\sigma = 0.05$ by setting a variable `covP = 0.05`.
+So let's simply take $\sigma = 0.05$ by setting a variable `covP = 0.05**2`.
 
 ### Generating different representations of the fuzzy data
 In our scenario, we can generate the different representations by creating random samples of the data. Luckily, for Gaussian uncertainties, FuzzyCat comes prepared with a utility function to do this for us. At a minimum, it requires the mean-values, `P`, and the covariances, `covP`, which will produce 100 representations, run the [AstroLink](https://github.com/william-h-oliver/astrolink) algorithm with its default parameters over each, and save the resultant clusters in the correct format within a new 'Clusters/' folder that will be located within the current directory.
