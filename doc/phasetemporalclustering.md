@@ -10,12 +10,12 @@ The goal of this page is to serve as a tutorial and to highlight how the combina
 
 ## Data: The NIHAO-UHD suite of cosmological hydrodynamical simulations
 
-In this tutorial we use simulations from the NIHAO-UHD suite [Buck et al. (2020)](https://doi.org/10.1093/mnras/stz3241) part of the Numerical Investigation of a Hundred Astronomical Objects (NIHAO) simulation suite ([Wang et al. 2015](https://doi.org/10.1093/mnras/stv1937)). These galaxies are chosen to reflect the most MW like galaxies in terms of mass, size and disk properties. Parts of the simulation suite have previously been used to study the build-up of MW's peanut-shaped bulge ([Buck et al. 2018](https://doi.org/10.3847/1538-4357/aaffd0), [Buck et al. 2019](https://doi.org/10.3847/1538-4357/aac890), investigate the stellar bar properties ([Hilmi et al. 2020](https://doi.org/10.1093/mnras/staa1934)), infer the MW's dark halo spin ([Obreja et al. 2022](https://doi.org/10.1051/0004-6361/202140983)), study the dwarf galaxy inventory of MW mass galaxies ([Buck et al. 2019](https://doi.org/10.1093/mnras/sty2913)) or investigate the age-metallicity relation of MW disk stars ([Lu et al. 2022](https://doi.org/10.1093/mnras/stac780)) including the chemical bimodality of disk stars ([Buck et al. 2020](https://doi.org/10.1093/mnras/stz3289)), their abundances ([Lu et al. 2022](https://doi.org/10.1093/mnras/stac610)) and the origin of very metal-poor stars inside the stellar disk ([Sestito et al. 2021](https://doi.org/10.1093/mnras/staa3479)]. Given their high resolution and complex cosmology hydrodynamical nature, the NIHAO-UHD offer the perfect opportunity to apply our clustering pipeline.
+In this tutorial we use simulations from the NIHAO-UHD suite [Buck et al. (2020)](https://doi.org/10.1093/mnras/stz3241) part of the Numerical Investigation of a Hundred Astronomical Objects (NIHAO) simulation suite ([Wang et al. 2015](https://doi.org/10.1093/mnras/stv1937)). These galaxies are chosen to reflect the most MW like galaxies in terms of mass, size and disk properties. Parts of the simulation suite have previously been used to study the build-up of MW's peanut-shaped bulge ([Buck et al. 2018](https://doi.org/10.3847/1538-4357/aaffd0), [Buck et al. 2019](https://doi.org/10.3847/1538-4357/aac890), investigate the stellar bar properties ([Hilmi et al. 2020](https://doi.org/10.1093/mnras/staa1934)), infer the MW's dark halo spin ([Obreja et al. 2022](https://doi.org/10.1051/0004-6361/202140983)), study the dwarf galaxy inventory of MW mass galaxies ([Buck et al. 2019](https://doi.org/10.1093/mnras/sty2913)) or investigate the age-metallicity relation of MW disk stars ([Lu et al. 2022](https://doi.org/10.1093/mnras/stac780)) including the chemical bimodality of disk stars ([Buck et al. 2020](https://doi.org/10.1093/mnras/stz3289)), their abundances ([Lu et al. 2022](https://doi.org/10.1093/mnras/stac610)) and the origin of very metal-poor stars inside the stellar disk ([Sestito et al. 2021](https://doi.org/10.1093/mnras/staa3479)]. Given their high resolution and complex hydrodynamical nature, the NIHAO-UHD offer the perfect opportunity to apply our clustering pipeline.
 
 
 ## Code: Running AstroLink and FuzzyCat on NIHAO-UHD stellar haloes
 
-To do spatio-temporal clustering on NIHAO-UHD galaxies we need a python script. Firstly, we do the necessary imports:
+To do phase-temporal clustering on NIHAO-UHD galaxies we need a python script. Firstly, we do the necessary imports:
 
 ```python
 import os
@@ -67,7 +67,7 @@ def loadGalaxyAsArrays(snapshotFilePath, particleName, featureSpaceNames = ['pos
         return gas, gasIDs
 ```
 
-Although we only present results for stellar particles here, this method readily allows for spatio-clustering of the dark matter and/or gas particles too.
+Although we only present results for stellar particles here, this method readily allows for phase-temporal clustering of the dark matter and/or gas particles too.
 
 With this method we can write a method that uses AstroLink to cluster the particles in each snapshot:
 
@@ -166,7 +166,7 @@ def runFuzzyCatOnClustersFromSnapshots(workingDirectoryPath, particleName, nSamp
     np.save(f"{workingDirectoryPath}stabilitiesGroups.npy", fc.stabilitiesGroups)
 ```
 
-That's all the methods we need to find a spatio-temporal clustering of a simulated galaxy. However, among other things, we also want to be able to visualise our results. So we need a plotting function...
+That's all the methods we need to find a phase-temporal clustering of a simulated galaxy. However, among other things, we also want to be able to visualise our results. So we need a plotting function...
 
 ```python
 def plotFuzzyClustersOntoSnapshot(particleArr, clusters_raw, fuzzyLabels, workingDirectoryPath, snapshotFileName, axisLimits):
@@ -302,7 +302,7 @@ Lastly, we need to set up our file paths, calculate some properties for the abov
 
 ```python
 if __name__ == '__main__':
-    """Run spatio-temporal clustering pipeline :)
+    """Run phase-temporal clustering pipeline :)
     """
 
     # Choose a particle from ['dark', 'stars', 'gas'] to cluster
@@ -358,13 +358,17 @@ If we run the above pipeline on the stellar particles of each of our NIHAO-UHD g
 
 ### g8.26e11
 
-Movie coming soon...
+.. raw:: html
+
+    <video controls src="./_static/nihao_uhd_8.26e11_zoom_2_new_run_stars_movie.mp4" alt="Phase-temporal clustering of the g8.26e11 NIHAO-UHD galaxy", width = 100%/></video>
+
 
 ### g1.12e12
 
 .. raw:: html
 
     <video controls src="./_static/nihao_uhd_g1.12e12_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g1.12e12 NIHAO-UHD galaxy", width = 100%/></video>
+
 
 ### g6.96e11
 
