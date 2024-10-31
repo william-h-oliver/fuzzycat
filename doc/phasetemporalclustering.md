@@ -25,6 +25,7 @@ import numpy as np
 import pynbody as pb
 import matplotlib.pyplot as plt
 import matplotlib.colors as col
+import ffmpeg
 
 from astrolink import AstroLink
 from fuzzycat import FuzzyCat, FuzzyPlots
@@ -33,10 +34,10 @@ from fuzzycat import FuzzyCat, FuzzyPlots
 Then, the first real piece of code we will use is a method that reads a snapshot file with `pynbody` and returns the necessary information about its main halo:
 
 ```python
-def loadGalaxyAsArrays(snapshotFilePath, particleName, featureSpaceNames = ['pos', 'vel'], featureSpaceUnits = ['kpc', 'km s**-1']):
+def loadGalaxyAsArrays(snapshotFilePath, particleName, featureSpaceNames = ['pos', 'vel']):
     """Returns the main halo data, from the simulation file `snapshotFilePath`, 
     for particle `particleName`, in the feature spaces specified by 
-    `featureSpaceNames`, with the units specified by `featureSpaceUnits`.
+    `featureSpaceNames`.
     """
 
     # Load the simulation snapshot
@@ -45,31 +46,32 @@ def loadGalaxyAsArrays(snapshotFilePath, particleName, featureSpaceNames = ['pos
     # Take only the largest halo and make it face-on (stellar disk is in the x-y plane)
     mainHalo = simulation.halos()[1]
     pb.analysis.angmom.faceon(mainHalo)
+    mainHalo.physical_units()
 
     # Centre data on the median of the dark matter halo
-    darkMatter = np.column_stack([mainHalo.dm[feature].in_units(unit) for feature, unit in zip(featureSpaceNames, featureSpaceUnits)])
+    darkMatter = np.column_stack([mainHalo.dm[feature] for feature in featureSpaceNames])
     centre = np.median(darkMatter, axis = 0)
 
     # Get particle data and IDs
     if particleName == 'dark':
         darkMatter -= centre
         darkMatterIDs = mainHalo.dm['iord']
-        return darkMatter, darkMatterIDs
+        return darkMatter, darkMatterIDs, simulation
     if particleName == 'stars':
-        stars = np.column_stack([mainHalo.stars[feature].in_units(unit) for feature, unit in zip(featureSpaceNames, featureSpaceUnits)])
+        stars = np.column_stack([mainHalo.stars[feature] for feature in featureSpaceNames])
         stars -= centre
         starsIDs = mainHalo.stars['iord']
-        return stars, starsIDs
+        return stars, starsIDs, simulation
     if particleName == 'gas':
-        gas = np.column_stack([mainHalo.gas[feature].in_units(unit) for feature, unit in zip(featureSpaceNames, featureSpaceUnits)])
+        gas = np.column_stack([mainHalo.gas[feature] for feature in featureSpaceNames])
         gas -= centre
         gasIDs = mainHalo.gas['iord']
-        return gas, gasIDs
+        return gas, gasIDs, simulation
 ```
 
 Although we only present results for stellar particles here, this method readily allows for phase-temporal clustering of the dark matter and/or gas particles too.
 
-With this method we can write a method that uses AstroLink to cluster the particles in each snapshot:
+With this, we can now write a method that uses AstroLink to cluster the particles in each snapshot:
 
 ```python
 def findAndSaveClustersFromSnapshots(snapshotFilePaths, workingDirectoryPath, particleName, nSamples):
@@ -93,7 +95,7 @@ def findAndSaveClustersFromSnapshots(snapshotFilePaths, workingDirectoryPath, pa
     for index, snapshotFilePath in enumerate(snapshotFilePaths):
         print(f"Loading {snapshotFilePath.split('/')[-1]}                                                         \t\t", end = '\r')
         # Load the galaxy
-        particleArr, particleIDs = loadGalaxyAsArrays(snapshotFilePath, particleName)
+        particleArr, particleIDs, _ = loadGalaxyAsArrays(snapshotFilePath, particleName)
 
         print(f"Running AstroLink on the {particleName} particles of snapshot {snapshotFilePath.split('/')[-1]}   \t\t", end = '\r')
         # Run AstroLink and save the clusters in the snapshot
@@ -131,7 +133,7 @@ The core of this method is simple; it loads the particle data, applies AstroLink
 With a series of reduced cluster files in 'Clusters' folder of the working directory, we can now run FuzzyCat and save its output.
 
 ```python
-def runFuzzyCatOnClustersFromSnapshots(workingDirectoryPath, particleName, nSamples, minStability):
+def runFuzzyCatOnClustersFromSnapshots(workingDirectoryPath, nSamples, minStability):
     """Runs FuzzyCat on the clusters contained in `workingDirectoryPath` with 
     parameters `nSamples` and `minStability`. The `nPoints` parameter is 
     determined automatically from a file containing the IDs of clustered 
@@ -169,22 +171,23 @@ def runFuzzyCatOnClustersFromSnapshots(workingDirectoryPath, particleName, nSamp
 That's all the methods we need to find a phase-temporal clustering of a simulated galaxy. However, among other things, we also want to be able to visualise our results. So we need a plotting function...
 
 ```python
-def plotFuzzyClustersOntoSnapshot(particleArr, clusters_raw, fuzzyLabels, workingDirectoryPath, snapshotFileName, axisLimits):
-    """Creates a two-panel plot of the fuzzy clusters found by AstroLink and 
-    FuzzyCat. The left panel is a 3D scatter plot and the right panel is a 
-    top-down view of the region around the disk of the galaxy.
+def paintLabelsOntoSnapshot(particleArr, clusters_raw, labels, saveFileNameStem, snapshotFileName, axisLimits, withDiskZoomIn = True):
+    """Creates a two-panel plot of the clusters within a snapshot. The left 
+    panel is a 3D scatter plot and the right panel is a top-down view of the 
+    region around the disk of the galaxy.
     """
 
-    # Colour the data according to the fuzzy cluster
+    # Colour the data according to the cluster
     colourList = [f"C{i}" for i in range(10) if i != 7]
     colours = np.zeros((particleArr.shape[0], 4))
     sizes = np.zeros(particleArr.shape[0])
-    for cluster_raw, fuzzyLabel in zip(clusters_raw, fuzzyLabels):
-        colours[cluster_raw] = col.to_rgba(colourList[fuzzyLabel%9], alpha = 1)
+    for cluster_raw, label in zip(clusters_raw, labels):
+        colours[cluster_raw] = col.to_rgba(colourList[label%9], alpha = 1)
         sizes[cluster_raw] = 0.5
     
     # Create figure
-    width, height = 16, 8
+    width = 16 if withDiskZoomIn else 8
+    height = 8
     figAspectRatio = height/width
     fig = plt.figure(figsize = (width, height))
     fig.patch.set_facecolor('k')
@@ -205,39 +208,40 @@ def plotFuzzyClustersOntoSnapshot(particleArr, clusters_raw, fuzzyLabels, workin
     ax.text(100, 0, 0, 'X', color = 'w')
     ax.text(0, 100, 0, 'Y', color = 'w')
     ax.text(0, 0, 100, 'Z', color = 'w')
-    # Add zoom-in box around disk
-    prismColour, prismAlpha = col.to_rgba('w', alpha = 0.2), 0.05
-    xyRange, zRange, onesArray = np.array([-25, 25]), np.array([-5, 5]), np.ones(4).reshape(2, 2)
-    for i in range(2):
-        # z-direction faces
-        xx, yy = np.meshgrid(xyRange, xyRange)
-        ax.plot_wireframe(xx, yy, zRange[i]*onesArray, color = prismColour)
-        ax.plot_surface(xx, yy, zRange[i]*onesArray, color = prismColour, alpha = prismAlpha)
-        # x-direction faces
-        xy, zz = np.meshgrid(xyRange, zRange)
-        ax.plot_wireframe(xyRange[i]*onesArray, xy, zz, color = prismColour)
-        ax.plot_surface(xyRange[i]*onesArray, xy, zz, color = prismColour, alpha = prismAlpha)
-        # y-direction faces
-        ax.plot_wireframe(xy, xyRange[i]*onesArray, zz, color = prismColour)
-        ax.plot_surface(xy, xyRange[i]*onesArray, zz, color = prismColour, alpha = prismAlpha)
+    if withDiskZoomIn:
+        # Add zoom-in box around disk
+        prismColour, prismAlpha = col.to_rgba('w', alpha = 0.2), 0.05
+        xyRange, zRange, onesArray = np.array([-25, 25]), np.array([-5, 5]), np.ones(4).reshape(2, 2)
+        for i in range(2):
+            # z-direction faces
+            xx, yy = np.meshgrid(xyRange, xyRange)
+            ax.plot_wireframe(xx, yy, zRange[i]*onesArray, color = prismColour)
+            ax.plot_surface(xx, yy, zRange[i]*onesArray, color = prismColour, alpha = prismAlpha)
+            # x-direction faces
+            xy, zz = np.meshgrid(xyRange, zRange)
+            ax.plot_wireframe(xyRange[i]*onesArray, xy, zz, color = prismColour)
+            ax.plot_surface(xyRange[i]*onesArray, xy, zz, color = prismColour, alpha = prismAlpha)
+            # y-direction faces
+            ax.plot_wireframe(xy, xyRange[i]*onesArray, zz, color = prismColour)
+            ax.plot_surface(xy, xyRange[i]*onesArray, zz, color = prismColour, alpha = prismAlpha)
 
-    # Plot the 2D disk data
-    axisCentre, axisHalfWidth = 0.5 + figAspectRatio/2, 0.9*(1 - figAspectRatio)
-    axDisk = fig.add_axes((axisCentre - axisHalfWidth/2,
-                           0.5*(1 - axisHalfWidth/figAspectRatio),
-                           axisHalfWidth,
-                           axisHalfWidth/figAspectRatio))
-    inBoxBool = (particleArr[:, 0] > xyRange[0])*(particleArr[:, 0] < xyRange[1]) # particles in x limits
-    inBoxBool *= (particleArr[:, 1] > xyRange[0])*(particleArr[:, 1] < xyRange[1]) # particles in y limits
-    inBoxBool *= (particleArr[:, 2] > zRange[0])*(particleArr[:, 2] < zRange[1]) # particles in z limits
-    axDisk.scatter(*particleArr[inBoxBool, :2].T, facecolors = colours[inBoxBool], edgecolors = 'w', s = 2*sizes[inBoxBool], lw = 0.05)
-    # Adjust data limits
-    axDisk.set_xlim(xyRange[0], xyRange[1])
-    axDisk.set_ylim(xyRange[0], xyRange[1])
-    # Remove axes
-    axDisk.patch.set_facecolor('k')
-    for side in ['top', 'left', 'bottom', 'right']:
-        axDisk.spines[side].set_color('w')
+        # Plot the 2D disk data
+        axisCentre, axisHalfWidth = 0.5 + figAspectRatio/2, 0.9*(1 - figAspectRatio)
+        axDisk = fig.add_axes((axisCentre - axisHalfWidth/2,
+                            0.5*(1 - axisHalfWidth/figAspectRatio),
+                            axisHalfWidth,
+                            axisHalfWidth/figAspectRatio))
+        inBoxBool = (particleArr[:, 0] > xyRange[0])*(particleArr[:, 0] < xyRange[1]) # particles in x limits
+        inBoxBool *= (particleArr[:, 1] > xyRange[0])*(particleArr[:, 1] < xyRange[1]) # particles in y limits
+        inBoxBool *= (particleArr[:, 2] > zRange[0])*(particleArr[:, 2] < zRange[1]) # particles in z limits
+        axDisk.scatter(*particleArr[inBoxBool, :2].T, facecolors = colours[inBoxBool], edgecolors = 'w', s = 2*sizes[inBoxBool], lw = 0.05)
+        # Adjust data limits
+        axDisk.set_xlim(xyRange[0], xyRange[1])
+        axDisk.set_ylim(xyRange[0], xyRange[1])
+        # Remove axes
+        axDisk.patch.set_facecolor('k')
+        for side in ['top', 'left', 'bottom', 'right']:
+            axDisk.spines[side].set_color('w')
 
     # Adjust figure margins
     top, bottom, left, right = 1, 0, 0, 1
@@ -248,7 +252,7 @@ def plotFuzzyClustersOntoSnapshot(particleArr, clusters_raw, fuzzyLabels, workin
     plt.grid(False)
     plt.text(0, 1, snapshotFileName, ha = 'left', va = 'top', fontsize = 10, color = 'w', transform = plt.gca().transAxes)
     # Save figure
-    plt.savefig(f"{workingDirectoryPath}Cluster_plots/plotted_clusters_{snapshotFileName}.png", dpi = 200, bbox_inches = 'tight')
+    plt.savefig(f"{saveFileNameStem}{snapshotFileName}.png", dpi = 200, bbox_inches = 'tight')
     fig.clf()
     plt.close()
     gc.collect()
@@ -261,6 +265,7 @@ def makeMovieOfFuzzyClustersOverTime(snapshotFilePaths, workingDirectoryPath, pa
     """Makes a movie of the fuzzy clusters found by AstroLink and FuzzyCat as 
     they evolve over time.
     """
+    saveFileNameStem = f"{workingDirectoryPath}Cluster_plots/plotted_clusters_"
 
     clusterFileNames = np.load(workingDirectoryPath + 'clusterFileNames.npy')
     ordering = np.load(workingDirectoryPath + 'ordering.npy')
@@ -272,7 +277,7 @@ def makeMovieOfFuzzyClustersOverTime(snapshotFilePaths, workingDirectoryPath, pa
     for index, snapshotFilePath in enumerate(snapshotFilePaths):
         print(f"Loading {snapshotFilePath.split('/')[-1]}                                                         \t\t", end = '\r')
         # Load the galaxy
-        particleArr, _ = loadGalaxyAsArrays(snapshotFilePath, particleName)
+        particleArr, _, _ = loadGalaxyAsArrays(snapshotFilePath, particleName)
 
         print(f"Loading clusters of {particleName} particles from snapshot {snapshotFilePath.split('/')[-1]}      \t\t", end = '\r')
         # Load AstroLink clusters (found in this snapshot) that belong to the fuzzy clusters from FuzzyCat
@@ -284,16 +289,77 @@ def makeMovieOfFuzzyClustersOverTime(snapshotFilePaths, workingDirectoryPath, pa
                 clusters_raw.append(cluster_raw)
                 fuzzyLabels.append(whichFuzzyClst)
         
-        print(f"Plotting {snapshotFilePath.split('/')[-1]} clusters                                               \t\t", end = '\r')
+        # Make plot of clusters
         snapshotFileName = snapshotFilePath.split('/')[-1]
-        plotFuzzyClustersOntoSnapshot(particleArr, clusters_raw, fuzzyLabels, workingDirectoryPath, snapshotFileName, axisLimits)
+        print(f"Plotting {snapshotFileName} clusters                                               \t\t", end = '\r')
+        paintLabelsOntoSnapshot(particleArr, clusters_raw, fuzzyLabels, saveFileNameStem, snapshotFileName, axisLimits)
 
     # Make movie
-    import ffmpeg
     (
         ffmpeg
         .input(f"{workingDirectoryPath}Cluster_plots/plotted_clusters_*.png", pattern_type = 'glob', framerate = frameRate)
         .output(f"{workingDirectoryPath}{workingDirectoryPath.split('/')[-2]}_movie.mp4")
+        .run()
+    )
+```
+
+Our simulation files have already had the AHF galaxy/(sub)halo finder + MergerTree code applied to them. So as a comparison, we also write a function to make the equivalent movies but with these clustering results instead.
+
+```python
+def makeMovieOfAHFHaloesOverTime(snapshotFilePaths, workingDirectoryPath, mtreeIdxFilePaths, particleName, axisLimits, frameRate):
+    """Makes a movie of AHF haloes as they evolve over time.
+    """
+    saveFileNameStem = f"{workingDirectoryPath}Halo_plots/plotted_ahf_haloes_"
+
+    for fileIndex, (snapshotFilePath, mtreeIdxFilePath) in enumerate(zip(snapshotFilePaths, mtreeIdxFilePaths)):
+        print(f"Loading {snapshotFilePath.split('/')[-1]}                                                         \t\t", end = '\r')
+        # Load the galaxy
+        particleArr, particleIDs, simulation = loadGalaxyAsArrays(snapshotFilePath, particleName)
+
+        print(f"Loading AHF haloes of {particleName} particles from snapshot {snapshotFilePath.split('/')[-1]}    \t\t", end = '\r')
+        # Load AHF haloes (found in this snapshot)
+        clusters_raw, ahfLabels = [], []
+        haloes = simulation.halos()
+        mainHalo = haloes[1]
+        subhaloIDList = mainHalo.properties['children']
+
+        # Load merger tree info and track labels between snapshots
+        with open(mtreeIdxFilePath, 'r') as mtreeFile:
+            lines = mtreeFile.readlines()[1:]
+        haloID_mainProgenitors = np.empty((len(lines), 2), dtype = np.int32)
+        for i, line in enumerate(lines):
+            for j, haloID in enumerate(line[:-1].split()):
+                haloID_mainProgenitors[i, j] = int(haloID)
+        labelTracker = [i for i in range(100000)] # Large enough too account for the max 'halo_id' value that occurs
+        if fileIndex > 0:
+            for i, j in haloID_mainProgenitors:
+                labelTracker[i] = oldLabelTracker[j]
+        
+        while subhaloIDList:
+            # Get next subhalo object and extend subhaloes list with any new sub-subhaloes
+            subhaloID = subhaloIDList.pop(0)
+            subhalo = haloes[subhaloID]
+            if subhalo.properties['numSubStruct']: subhaloIDList.extend(subhalo.properties['children'])
+            # Create an array of indices (relative to mainHalo) for the particles in this subhalo
+            if particleName == 'dark': subhaloParticleIDs = subhalo.dm['iord']
+            if particleName == 'stars': subhaloParticleIDs = subhalo.stars['iord']
+            if particleName == 'gas': subhaloParticleIDs = subhalo.gas['iord']
+            cluster_raw = np.where(np.isin(particleIDs, subhaloParticleIDs))[0]
+            clusters_raw.append(cluster_raw)
+            # Append a unique subhalo label that accounts for the merger tree
+            ahfLabels.append(labelTracker[subhaloID - 1])
+        oldLabelTracker = labelTracker
+        
+        # Make plot of clusters
+        snapshotFileName = snapshotFilePath.split('/')[-1]
+        print(f"Plotting {snapshotFileName} AHF haloes                                                            \t\t", end = '\r')
+        paintLabelsOntoSnapshot(particleArr, clusters_raw, ahfLabels, saveFileNameStem, snapshotFileName, axisLimits, withDiskZoomIn = False)
+
+    # Make movie
+    (
+        ffmpeg
+        .input(f"{saveFileNameStem}*.png", pattern_type = 'glob', framerate = frameRate)
+        .output(f"{workingDirectoryPath}{workingDirectoryPath.split('/')[-2]}_ahf_movie.mp4")
         .run()
     )
 ```
@@ -317,12 +383,18 @@ if __name__ == '__main__':
         os.makedirs(f"{workingDirectoryPath}Clusters_iord/")
         os.makedirs(f"{workingDirectoryPath}Clusters/")
         os.makedirs(f"{workingDirectoryPath}Cluster_plots/")
+        os.makedirs(f"{workingDirectoryPath}Halo_plots/")
 
     # Get the simulation snapshot file paths
     simulationDirectoryPath = f"/PATH/TO/YOUR/SIMULATION/DIRECTORY/nihao_uhd/{galaxyFolderName}/"
     snapshotFilePrefix = '8.26e11.'
     snapshotNumberRange = range(1164, 2001)
     snapshotFilePaths = [f"{simulationDirectoryPath}{snapshotFilePrefix}{i:05}" for i in snapshotNumberRange]
+
+    # Get merger tree info files for AHF comparison movie
+    mtreeIdxFilePaths = [fileName for fileName in os.listdir(simulationDirectoryPath) if fileName.endswith('.AHF_mtree_idx') and int(fileName.split('.')[2]) in snapshotNumberRange]
+    reorder = np.argsort([int(fileName.split('.')[2]) for fileName in mtreeIdxFilePaths])
+    mtreeIdxFilePaths = [f"{simulationDirectoryPath}{mtreeIdxFilePaths[i]}" for i in reorder]
 
     # Info for the clustering pipeline
     nSamples = len(snapshotFilePaths)
@@ -339,56 +411,108 @@ if __name__ == '__main__':
     findAndSaveClustersFromSnapshots(snapshotFilePaths, workingDirectoryPath, particleName, nSamples)
 
     # Run FuzzyCat on AstroLink clusters
-    runFuzzyCatOnClustersFromSnapshots(workingDirectoryPath, particleName, nSamples, minStability)
+    runFuzzyCatOnClustersFromSnapshots(workingDirectoryPath, nSamples, minStability)
 
     # Make movie of stable clusters over time
     makeMovieOfFuzzyClustersOverTime(snapshotFilePaths, workingDirectoryPath, particleName, axisLimits, frameRate)
+
+    # Make movie of AHF haloes for comparison
+    makeMovieOfAHFHaloesOverTime(snapshotFilePaths, workingDirectoryPath, mtreeIdxFilePaths, particleName, axisLimits, frameRate)
 ```
 
 ## Results: Let's visualise the clusters!
 
-If we run the above pipeline on the stellar particles of each of our NIHAO-UHD galaxies, then we get the movies in the following subsections -- which obviously contain a great deal of information on the nature of the formation and evolution of the respective galaxies.
+If we run the above pipeline on the stellar particles of each of our NIHAO-UHD galaxies, then we get the movies in the following subsections -- which obviously contain a great deal of information on the nature of the formation and evolution of the respective galaxies. Among the structures extracted by our approach are; dwarf galaxies, infalling groups, stellar streams (and their progenitors), stellar shells, galactic bulges, and star-forming regions.
 
-### g2.79e12
+.. note::  These animations may not be playable on Safari -- try Chrome or Firefox instead.
+
+### FuzzyCat + AstroLink: g2.79e12
 
 .. raw:: html
 
     <video controls src="./_static/nihao_uhd_2.79e12_zoom_6_rerun_stars_movie.mp4" alt="Phase-temporal clustering of the g2.79e12 NIHAO-UHD galaxy", width = 100%/></video>
 
 
-### g8.26e11
+### FuzzyCat + AstroLink: g8.26e11
 
 .. raw:: html
 
     <video controls src="./_static/nihao_uhd_8.26e11_zoom_2_new_run_stars_movie.mp4" alt="Phase-temporal clustering of the g8.26e11 NIHAO-UHD galaxy", width = 100%/></video>
 
 
-### g1.12e12
+### FuzzyCat + AstroLink: g1.12e12
 
 .. raw:: html
 
     <video controls src="./_static/nihao_uhd_g1.12e12_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g1.12e12 NIHAO-UHD galaxy", width = 100%/></video>
 
 
-### g6.96e11
+### FuzzyCat + AstroLink: g6.96e11
 
 .. raw:: html
 
     <video controls src="./_static/nihao_uhd_g6.96e11_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g6.96e11 NIHAO-UHD galaxy", width = 100%/></video>
 
 
-### g7.08e11
+### FuzzyCat + AstroLink: g7.08e11
 
 .. raw:: html
 
     <video controls src="./_static/nihao_uhd_g7.08e11_5x10_stars_movie.mp4" alt="Phase-temporal clustering of the g7.08e11 NIHAO-UHD galaxy", width = 100%/></video>
 
 
-### g7.55e11
+### FuzzyCat + AstroLink: g7.55e11
 
 .. raw:: html
 
     <video controls src="./_static/nihao_uhd_g7.55e11_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g7.55e11 NIHAO-UHD galaxy", width = 100%/></video>
+
+## Results: A comparison to a more traditional halo finder
+
+By comparison, traditional approaches are not able to find most of the structure we see with FuzzyCat + AstroLink. In fact, most are only capable of finding a subset what our approach finds which is (or is mostly) self-bound -- this can be seen with the corresponding results from AHF.
+
+.. note::  These animations may not be playable on Safari -- try Chrome or Firefox instead.
+
+### AHF: g2.79e12
+
+.. raw:: html
+
+    <video controls src="./_static/nihao_uhd_2.79e12_zoom_6_rerun_stars_ahf_movie.mp4" alt="AHF clustering of the g2.79e12 NIHAO-UHD galaxy", width = 100%/></video>
+
+
+### AHF: g8.26e11
+
+.. raw:: html
+
+    <video controls src="./_static/nihao_uhd_8.26e11_zoom_2_new_run_stars_ahf_movie.mp4" alt="AHF clustering of the g8.26e11 NIHAO-UHD galaxy", width = 100%/></video>
+
+
+### AHF: g1.12e12
+
+.. raw:: html
+
+    <video controls src="./_static/nihao_uhd_g1.12e12_3x9_stars_ahf_movie.mp4" alt="AHF clustering of the g1.12e12 NIHAO-UHD galaxy", width = 100%/></video>
+
+
+### AHF: g6.96e11
+
+.. raw:: html
+
+    <video controls src="./_static/nihao_uhd_g6.96e11_3x9_stars_ahf_movie.mp4" alt="AHF clustering of the g6.96e11 NIHAO-UHD galaxy", width = 100%/></video>
+
+
+### AHF: g7.08e11
+
+.. raw:: html
+
+    <video controls src="./_static/nihao_uhd_g7.08e11_5x10_stars_ahf_movie.mp4" alt="AHF clustering of the g7.08e11 NIHAO-UHD galaxy", width = 100%/></video>
+
+
+### AHF: g7.55e11
+
+.. raw:: html
+
+    <video controls src="./_static/nihao_uhd_g7.55e11_3x9_stars_ahf_movie.mp4" alt="AHF clustering of the g7.55e11 NIHAO-UHD galaxy", width = 100%/></video>
 
 ## Conclusions and outlook
 
