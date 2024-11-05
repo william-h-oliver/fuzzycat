@@ -430,42 +430,42 @@ If we run the above pipeline on the stellar particles of each of our NIHAO-UHD g
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_2.79e12_zoom_6_rerun_stars_movie.mp4" alt="Phase-temporal clustering of the g2.79e12 NIHAO-UHD galaxy", width = 100%/></video>
+    <video controls src="./_static/nihao_uhd_2.79e12_zoom_6_rerun_stars_movie_h264.mp4" alt="Phase-temporal clustering of the g2.79e12 NIHAO-UHD galaxy", width = 100%/></video>
 
 
 ### FuzzyCat + AstroLink: g8.26e11
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_8.26e11_zoom_2_new_run_stars_movie.mp4" alt="Phase-temporal clustering of the g8.26e11 NIHAO-UHD galaxy", width = 100%/></video>
+    <video controls src="./_static/nihao_uhd_8.26e11_zoom_2_new_run_stars_movie_h264.mp4" alt="Phase-temporal clustering of the g8.26e11 NIHAO-UHD galaxy", width = 100%/></video>
 
 
 ### FuzzyCat + AstroLink: g1.12e12
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_g1.12e12_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g1.12e12 NIHAO-UHD galaxy", width = 100%/></video>
+    <video controls src="./_static/nihao_uhd_g1.12e12_3x9_stars_movie_h264.mp4" alt="Phase-temporal clustering of the g1.12e12 NIHAO-UHD galaxy", width = 100%/></video>
 
 
 ### FuzzyCat + AstroLink: g6.96e11
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_g6.96e11_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g6.96e11 NIHAO-UHD galaxy", width = 100%/></video>
+    <video controls src="./_static/nihao_uhd_g6.96e11_3x9_stars_movie_h264.mp4" alt="Phase-temporal clustering of the g6.96e11 NIHAO-UHD galaxy", width = 100%/></video>
 
 
 ### FuzzyCat + AstroLink: g7.08e11
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_g7.08e11_5x10_stars_movie.mp4" alt="Phase-temporal clustering of the g7.08e11 NIHAO-UHD galaxy", width = 100%/></video>
+    <video controls src="./_static/nihao_uhd_g7.08e11_5x10_stars_movie_h264.mp4" alt="Phase-temporal clustering of the g7.08e11 NIHAO-UHD galaxy", width = 100%/></video>
 
 
 ### FuzzyCat + AstroLink: g7.55e11
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_g7.55e11_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g7.55e11 NIHAO-UHD galaxy", width = 100%/></video>
+    <video controls src="./_static/nihao_uhd_g7.55e11_3x9_stars_movie_h264.mp4" alt="Phase-temporal clustering of the g7.55e11 NIHAO-UHD galaxy", width = 100%/></video>
 
 ## Results: A comparison to a more traditional halo finder
 
@@ -473,7 +473,46 @@ By comparison, traditional approaches are not able to find most of the structure
 
 .. note::  These animations may not be playable on Safari -- try Chrome or Firefox instead.
 
+### AHF: g2.79e12
 
+.. raw:: html
+
+    <video controls src="./_static/nihao_uhd_2.79e12_zoom_6_rerun_stars_ahf_movie_h264.mp4" alt="AHF clustering of the g2.79e12 NIHAO-UHD galaxy", width = 100%/></video>
+
+
+### AHF: g8.26e11
+
+.. raw:: html
+
+    <video controls src="./_static/nihao_uhd_8.26e11_zoom_2_new_run_stars_ahf_movie_h264.mp4" alt="AHF clustering of the g8.26e11 NIHAO-UHD galaxy", width = 100%/></video>
+
+
+### AHF: g1.12e12
+
+.. raw:: html
+
+    <video controls src="./_static/nihao_uhd_g1.12e12_3x9_stars_ahf_movie_h264.mp4" alt="AHF clustering of the g1.12e12 NIHAO-UHD galaxy", width = 100%/></video>
+
+
+### AHF: g6.96e11
+
+.. raw:: html
+
+    <video controls src="./_static/nihao_uhd_g6.96e11_3x9_stars_ahf_movie_h264.mp4" alt="AHF clustering of the g6.96e11 NIHAO-UHD galaxy", width = 100%/></video>
+
+
+### AHF: g7.08e11
+
+.. raw:: html
+
+    <video controls src="./_static/nihao_uhd_g7.08e11_5x10_stars_ahf_movie_h264.mp4" alt="AHF clustering of the g7.08e11 NIHAO-UHD galaxy", width = 100%/></video>
+
+
+### AHF: g7.55e11
+
+.. raw:: html
+
+    <video controls src="./_static/nihao_uhd_g7.55e11_3x9_stars_ahf_movie_h264.mp4" alt="AHF clustering of the g7.55e11 NIHAO-UHD galaxy", width = 100%/></video>
 
 ## Conclusions and outlook
 
