@@ -512,7 +512,7 @@ By comparison, traditional approaches are not able to find most of the structure
 .. raw:: html
 
     <video controls src="https://github.com/william-h-oliver/fuzzycat/raw/refs/heads/main/doc/animations/nihao_uhd_g7.55e11_3x9_stars_ahf_movie_h264.mp4" alt="AHF clustering of the g7.55e11 NIHAO-UHD galaxy", width = 100%/></video>
--->
+
 
 ## Conclusions and outlook
 
