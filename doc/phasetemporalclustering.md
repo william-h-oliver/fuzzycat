@@ -432,7 +432,7 @@ If we run the above pipeline on the stellar particles of each of our NIHAO-UHD g
 
     <video controls src="./_static/nihao_uhd_2.79e12_zoom_6_rerun_stars_movie_h264.mp4" alt="Phase-temporal clustering of the g2.79e12 NIHAO-UHD galaxy", width = 100%/></video>
 
-
+<!---
 ### FuzzyCat + AstroLink: g8.26e11
 
 .. raw:: html
@@ -513,6 +513,7 @@ By comparison, traditional approaches are not able to find most of the structure
 .. raw:: html
 
     <video controls src="./_static/nihao_uhd_g7.55e11_3x9_stars_ahf_movie_h264.mp4" alt="AHF clustering of the g7.55e11 NIHAO-UHD galaxy", width = 100%/></video>
+-->
 
 ## Conclusions and outlook
 
