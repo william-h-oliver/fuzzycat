@@ -425,78 +425,80 @@ if __name__ == '__main__':
 If we run the above pipeline on the stellar particles of each of our NIHAO-UHD galaxies, then we get the movies in the following subsections -- which obviously contain a great deal of information on the nature of the formation and evolution of the respective galaxies. Among the structures extracted by our approach are; dwarf galaxies, infalling groups, stellar streams (and their progenitors), stellar shells, galactic bulges, and star-forming regions.
 
 ### FuzzyCat + AstroLink: g2.79e12
+
 .. raw:: html
 
     <iframe width=100% src="https://www.youtube.com/embed/DP9uzasFais?si=0ZalrA0eRnjM0x6H" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### FuzzyCat + AstroLink: g8.26e11
+
 .. raw:: html
 
     <iframe width=100% src="https://www.youtube.com/embed/D1Io8g0pDHs?si=ixsLhGGgimg_rUOi" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### FuzzyCat + AstroLink: g1.12e12
+
 .. raw:: html
 
     <iframe width=100% src="https://www.youtube.com/embed/AfAdsZWiQa8?si=vVi-ZJXB_Zcjz9H4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### FuzzyCat + AstroLink: g6.96e11
+
 .. raw:: html
 
     <iframe width=100% src="https://www.youtube.com/embed/yc5raoY0hOg?si=5a-LPJQW5WvO0aN4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-<!---
 ### FuzzyCat + AstroLink: g7.08e11
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_g7.08e11_5x10_stars_movie.mp4" alt="Phase-temporal clustering of the g7.08e11 NIHAO-UHD galaxy", width = 100%/></video>
-
+    <iframe width=100% src="https://www.youtube.com/embed/R2LouxFRxB8?si=NR2g4jZC6tDSNs6u" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### FuzzyCat + AstroLink: g7.55e11
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_g7.55e11_3x9_stars_movie.mp4" alt="Phase-temporal clustering of the g7.55e11 NIHAO-UHD galaxy", width = 100%/></video>
--->
-
+    <iframe width=100% src="https://www.youtube.com/embed/K9BbH4BoT-4?si=NqXNEAG0Fyn-RNn-" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    
 ## Results: A comparison to a more traditional halo finder
 
 By comparison, traditional approaches are not able to find most of the structure we see with FuzzyCat + AstroLink. In fact, most are only capable of finding a subset what our approach finds which is (or is mostly) self-bound -- this can be seen with the corresponding results from AHF.
 
 ### AHF: g2.79e12
+
 .. raw:: html
 
     <iframe width=100% src="https://www.youtube.com/embed/NumJKN_9T6U?si=O-YMTRGPzhHW8OXt" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### AHF: g8.26e11
+
 .. raw:: html
 
     <iframe width=100% src="https://www.youtube.com/embed/HDPoOPQz17U?si=2Gi5AAxJQBvmqmVb" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### AHF: g1.12e12
+
 .. raw:: html
 
     <iframe width=100% src="https://www.youtube.com/embed/VKXzFZCuGwE?si=TQ_VMOWxR0iQUiO7" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### AHF: g6.96e11
+
 .. raw:: html
 
     <iframe width=100% src="https://www.youtube.com/embed/ZzdqNUYdbb0?si=Boayz21mg3gJuA9l" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-<!---
 ### AHF: g7.08e11
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_g7.08e11_5x10_stars_ahf_movie.mp4" alt="AHF clustering of the g7.08e11 NIHAO-UHD galaxy", width = 100%/></video>
-
+    <iframe width=100% src="https://www.youtube.com/embed/ETxcDatHduQ?si=fLpurQq6p_VOSJuY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### AHF: g7.55e11
 
 .. raw:: html
 
-    <video controls src="./_static/nihao_uhd_g7.55e11_3x9_stars_ahf_movie.mp4" alt="AHF clustering of the g7.55e11 NIHAO-UHD galaxy", width = 100%/></video>
--->
+    <iframe width=100% src="https://www.youtube.com/embed/nGQQmYVu1gg?si=BnXTAtQf6yiIkzrY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ## Conclusions and outlook
 
