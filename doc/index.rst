@@ -6,8 +6,8 @@ FuzzyCat
    :caption: Contents:
 
    intro
+   howitworks
    phasetemporalclustering
-   demo
    api
 
 Indices and tables
