@@ -133,12 +133,12 @@ Even still, and for improved interpretability, we can be more specific and delib
 
 Now we are visualising an _exploded_ diagram of the fuzzy clusters. The central panel is the same as the previous figure, only now with extra contours outlining the fuzzy clusters. Each of the surrounding axes corresponds to one fuzzy cluster, and each point within these axes is coloured according to it's membership to that fuzzy cluster alone (the stability of the fuzzy cluster is marked on the axis although this doesn't influence the colour here). This view really allows us to see how (in this case) FuzzyCat has found stable k-means-_like_ soft clusters that don't depend upon any single value of _k_. In fact the final fuzzy clusters are an amalgamation of several k-means clusters that are found from repeated application with various _k_ values. Furthermore, we can see that FuzzyCat has been able to find precisely 6 fuzzy clusters whose stabilities sum to $\approx$ 4.5 (a kind of empirical expectation value for the number of _true_ k-means clusters). This range straddles the inital guess range, found from the Elbow and Silhouette plots, that seems to contain the best values of _k_.
 
-We can get yet another version of the clusters if for each point we assign to the cluster that it is most-probably a member of. This is done using the measure defined by the product of stability and membership and looks like the following for our case...
+Of course, we can always reduce the fuzzy clusters to the most-probable clustering. This is done by using the measure defined by the product of stability and membership to assign each point to the fuzzy cluster that it most-probably a member of. The resultant hard clustering looks like the following for our case...
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/william-h-oliver/fuzzycat/main/images/howitworks/MostProbableLabels.png" alt="Most probable labels."/>
 </p>
 
-With this we reduce the results to a very interpretable version k-means-like clusters.
+With this we reduce the results to a very interpretable version stable k-means-like clusters.
 
 Of course this example is contrived in order to demonstrate _how_ FuzzyCat works, as such it is not a particularly motivating case for _why_ it should be used &mdash; for this you should read through to the end of the next section :)
