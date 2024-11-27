@@ -46,7 +46,7 @@ In order to run the FuzzyCat algorithm on these clustering results, we first nee
 
 ### A similarity matrix for clusters
 
-With this table of clustering information, FuzzyCat first computes a matrix of Jaccard indices calculated for every pair of clusters. For two clusters, the Jaccard index is their intersection divided by their union &mdash; which for the first two clusters in the table above is 0 (as they do not intersect), but for the first and third clusters it is 16/17 $\approx$ 0.94. As such, the Jaccard index matrix for our problem looks like...
+With this table of clustering information, FuzzyCat first computes a matrix of Jaccard indices calculated for every pair of clusters. For two clusters, the Jaccard index is their intersection divided by their union &mdash; which for the first two clusters in the table above is 0 (as they do not intersect), but for the first and third clusters it is :math:`16/17 \approx 0.94`. As such, the Jaccard index matrix for our problem looks like...
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/william-h-oliver/fuzzycat/main/images/howitworks/k_means_jaccard_matrix.png" alt="Jaccard index matrix computed by FuzzyCat."/>
