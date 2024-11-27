@@ -1,4 +1,4 @@
-# Galaxy Formation and Evolution via Phase-temporal Clustering with FuzzyCat + AstroLink
+# Galaxy Formation and Evolution via Phase-temporal Clustering with FuzzyCat :math:`\circ` AstroLink
 
 A pressing and continually evolving sub-field of astrophysics is the study of galaxy formation and evolution. This study seeks to understand how and why a galaxy and its substructure develops over time in the context of the surrounding environment and of the underlying cosmological model. To do this, astrophysicists and cosmologists will look to both observational and simulation data. In observations, we may learn from a single snapshot in time of a very large number of galaxies that arise from the ground-truth cosmological model of our Universe. While in simulations, we may learn from many snapshots of a comparatively small number of galaxies that depend on a pre-specified cosmological model. By comparing these two data types, we can hope to constrain our cosmological models and understanding of galaxy formation and evolution.
 
@@ -424,37 +424,37 @@ if __name__ == '__main__':
 
 If we run the above pipeline on the stellar particles of each of our NIHAO-UHD galaxies, then we get the movies in the following subsections -- which obviously contain a great deal of information on the nature of the formation and evolution of the respective galaxies. Among the structures extracted by our approach are; dwarf galaxies, infalling groups, stellar streams (and their progenitors), stellar shells, galactic bulges, and star-forming regions.
 
-### FuzzyCat + AstroLink: g2.79e12
+### FuzzyCat :math:`\circ` AstroLink: g2.79e12
 
 .. raw:: html
 
     <iframe width=100% src="https://www.youtube.com/embed/DP9uzasFais?si=0ZalrA0eRnjM0x6H" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-### FuzzyCat + AstroLink: g8.26e11
+### FuzzyCat :math:`\circ` AstroLink: g8.26e11
 
 .. raw:: html
 
     <iframe width=100% src="https://www.youtube.com/embed/D1Io8g0pDHs?si=ixsLhGGgimg_rUOi" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-### FuzzyCat + AstroLink: g1.12e12
+### FuzzyCat :math:`\circ` AstroLink: g1.12e12
 
 .. raw:: html
 
     <iframe width=100% src="https://www.youtube.com/embed/AfAdsZWiQa8?si=vVi-ZJXB_Zcjz9H4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-### FuzzyCat + AstroLink: g6.96e11
+### FuzzyCat :math:`\circ` AstroLink: g6.96e11
 
 .. raw:: html
 
     <iframe width=100% src="https://www.youtube.com/embed/yc5raoY0hOg?si=5a-LPJQW5WvO0aN4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-### FuzzyCat + AstroLink: g7.08e11
+### FuzzyCat :math:`\circ` AstroLink: g7.08e11
 
 .. raw:: html
 
     <iframe width=100% src="https://www.youtube.com/embed/R2LouxFRxB8?si=NR2g4jZC6tDSNs6u" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-### FuzzyCat + AstroLink: g7.55e11
+### FuzzyCat :math:`\circ` AstroLink: g7.55e11
 
 .. raw:: html
 
@@ -462,7 +462,7 @@ If we run the above pipeline on the stellar particles of each of our NIHAO-UHD g
     
 ## Results: A comparison to a more traditional halo finder
 
-By comparison, traditional approaches are not able to find most of the structure we see with FuzzyCat + AstroLink. In fact, most are only capable of finding a subset what our approach finds which is (or is mostly) self-bound -- this can be seen with the corresponding results from AHF.
+By comparison, traditional approaches are not able to find most of the structure we see with FuzzyCat :math:`\circ` AstroLink. In fact, most are only capable of finding a subset what our approach finds which is (or is mostly) self-bound -- this can be seen with the corresponding results from AHF.
 
 ### AHF: g2.79e12
 
@@ -502,4 +502,4 @@ By comparison, traditional approaches are not able to find most of the structure
 
 ## Conclusions and outlook
 
-In this work, we have demonstrated the effectiveness of the FuzzyCat + AstroLink pipeline as a novel unsupervised machine learning approach -- particularly as a tool for analysing simulated galaxies in the context of galaxy formation and evolution. By applying our pipeline to the NIHAO-UHD suite, we have shown that it can successfully identify a diverse range of astrophysical structures that traditional halo finder (+ merger tree) methods do not -- capture transient and tidally disrupted structures that are often overlooked in conventional analyses. As such, it provides the means to a more comprehensive understanding of galaxy formation and evolution.
+In this work, we have demonstrated the effectiveness of the FuzzyCat :math:`\circ` AstroLink pipeline as a novel unsupervised machine learning approach -- particularly as a tool for analysing simulated galaxies in the context of galaxy formation and evolution. By applying our pipeline to the NIHAO-UHD suite, we have shown that it can successfully identify a diverse range of astrophysical structures that traditional halo finder (+ merger tree) methods do not -- capture transient and tidally disrupted structures that are often overlooked in conventional analyses. As such, it provides the means to a more comprehensive understanding of galaxy formation and evolution.

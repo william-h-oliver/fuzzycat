@@ -2,7 +2,7 @@
 
 FuzzyCat is an unsupervised general-purpose soft-clustering algorithm that, given a series of clusterings on object-based data, produces data-driven fuzzy clusters whose membership functions encapsulate the effects of changes in the clusters due to some underlying process. FuzzyCat propagates these effects into a soft-clustering which has had these effects abstracted away into the membership functions of the original object-based data set.
 
-The goal of this page is to provide an intuitive overview of how the FuzzyCat algorithm works. To aid the explanation, we will first look at a simple clustering problem that has no obvious solution &mdash; which we will later see that FuzzyCat can help provide.
+The goal of this page is to provide an intuitive overview of how the FuzzyCat algorithm works. To aid the explanation, we will first look at a simple clustering problem that has no obvious solution -- which we will later see that FuzzyCat can help provide.
 
 
 
@@ -32,7 +32,7 @@ While this might give us some intuition about some _k_ values being better than 
 
 Typically, one chooses a value of _k_ by looking for an _elbow_ in the first plot and a peak in the second. We see that _k_ values around 4 to 6 roughly satisfy these descriptions, however it is not obvious for exactly which _k_ value this occurs. It seems that we are just limited by having to make a choice for _k_ and that what we would actually like to do is combine the results we get when using multiple _k_ values.
 
-If it is indeed the latter, then we would like to abstract the effect of a changing _k_ value into a representation of k-means-like clusters that remain stable over a range of _k_ values &mdash; this is a task for FuzzyCat!
+If it is indeed the latter, then we would like to abstract the effect of a changing _k_ value into a representation of k-means-like clusters that remain stable over a range of _k_ values -- this is a task for FuzzyCat!
 
 
 
@@ -46,13 +46,13 @@ In order to run the FuzzyCat algorithm on these clustering results, we first nee
 
 ### A similarity matrix for clusters
 
-With this table of clustering information, FuzzyCat first computes a matrix of Jaccard indices calculated for every pair of clusters. For two clusters, the Jaccard index is their intersection divided by their union &mdash; which for the first two clusters in the table above is 0 (as they do not intersect), but for the first and third clusters it is :math:`16/17 \approx 0.94`. As such, the Jaccard index matrix for our problem looks like...
+With this table of clustering information, FuzzyCat first computes a matrix of Jaccard indices calculated for every pair of clusters. For two clusters, the Jaccard index is their intersection divided by their union -- which for the first two clusters in the table above is 0 (as they do not intersect), but for the first and third clusters it is :math:`16/17 \approx 0.94`. As such, the Jaccard index matrix for our problem looks like...
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/william-h-oliver/fuzzycat/main/images/howitworks/k_means_jaccard_matrix.png" alt="Jaccard index matrix computed by FuzzyCat."/>
 </p>
 
-This matrix is symmetric and the elements of the main diagonal are trivially equal to 1, so in reality FuzzyCat only actually computes the upper right (or equivalently, lower left) $n(n - 1)/2$ elements of this matrix.
+This matrix is symmetric and the elements of the main diagonal are trivially equal to 1, so in reality FuzzyCat only actually computes the upper right (or equivalently, lower left) :math:`n(n - 1)/2` elements of this matrix.
 
 ### Finding a representation of the fuzzy clustering structure
 
@@ -73,7 +73,7 @@ This visualisation for the AstroLink aggregation process can be thought of as a 
 Besides the meaning of _data objects_, there are two differences between FuzzyCat and AstroLink with regards to this process...
 
 1. FuzzyCat doesn't perform any equivalent of step 6, since the edges from the Jaccard index matrix denote a densely-connected graph; and
-2. Unlike Astrolink, FuzzyCat doesn't keep track of two separate sets of connected components, $G_\geq$ and $G_\leq$, instead all connected components are stored in one list, G. This is because FuzzyCat doesn't need to differentiate between the larger and smaller of any two connected components within the extraction procedure that follows this process.
+2. Unlike Astrolink, FuzzyCat doesn't keep track of two separate sets of connected components, :math:`G_\geq` and :math:`G_\leq`, instead all connected components are stored in one list, G. This is because FuzzyCat doesn't need to differentiate between the larger and smaller of any two connected components within the extraction procedure that follows this process.
 
 The resulting information gained from the aggregation process above is a representation of all overdensities within the data, which for FuzzyCat is the ordered-Jaccard plot and the list of all possible fuzzy clusters. Returning to our k-means clustering problem, this plot would appear as follows.
 
@@ -96,7 +96,7 @@ FuzzyCat governs this behaviour with three hyperparameters, `minIntraJaccardInde
 * `minStability` : `float`, default = 0.5
   - The minimum stability that a fuzzy cluster must have to be included in the final set of fuzzy clusters.
 
-The default values work well in most cases, particularly with regards to the Jaccard index based parameters since a value of 0.5 marks a transition point where two clusters become more (dis-)similar to one another than not. The `minStability` may be adjusted more readily, particularly in the case of applying FuzzyCat to temporally evolving data &mdash; where it should be calculated so as to yield fuzzy clusters that remain stable over a minimum length of time.
+The default values work well in most cases, particularly with regards to the Jaccard index based parameters since a value of 0.5 marks a transition point where two clusters become more (dis-)similar to one another than not. The `minStability` may be adjusted more readily, particularly in the case of applying FuzzyCat to temporally evolving data -- where it should be calculated so as to yield fuzzy clusters that remain stable over a minimum length of time.
 
 For our running k-means example, extracting fuzzy clusters using the default leaves fuzzy clusters as marked on the ordered-Jaccard plot below.
 
@@ -131,7 +131,7 @@ Even still, and for improved interpretability, we can be more specific and delib
   <img src="https://raw.githubusercontent.com/william-h-oliver/fuzzycat/main/images/howitworks/ExplodedFuzzyLabels.png" alt="An exploded diagram of fuzzy labels."/>
 </p>
 
-Now we are visualising an _exploded_ diagram of the fuzzy clusters. The central panel is the same as the previous figure, only now with extra contours outlining the fuzzy clusters. Each of the surrounding axes corresponds to one fuzzy cluster, and each point within these axes is coloured according to it's membership to that fuzzy cluster alone (the stability of the fuzzy cluster is marked on the axis although this doesn't influence the colour here). This view really allows us to see how (in this case) FuzzyCat has found stable k-means-_like_ soft clusters that don't depend upon any single value of _k_. In fact the final fuzzy clusters are an amalgamation of several k-means clusters that are found from repeated application with various _k_ values. Furthermore, we can see that FuzzyCat has been able to find precisely 6 fuzzy clusters whose stabilities sum to $\approx$ 4.5 (a kind of empirical expectation value for the number of _true_ k-means clusters). This range straddles the inital guess range, found from the Elbow and Silhouette plots, that seems to contain the best values of _k_.
+Now we are visualising an _exploded_ diagram of the fuzzy clusters. The central panel is the same as the previous figure, only now with extra contours outlining the fuzzy clusters. Each of the surrounding axes corresponds to one fuzzy cluster, and each point within these axes is coloured according to it's membership to that fuzzy cluster alone (the stability of the fuzzy cluster is marked on the axis although this doesn't influence the colour here). This view really allows us to see how (in this case) FuzzyCat has found stable k-means-_like_ soft clusters that don't depend upon any single value of _k_. In fact the final fuzzy clusters are an amalgamation of several k-means clusters that are found from repeated application with various _k_ values. Furthermore, we can see that FuzzyCat has been able to find precisely 6 fuzzy clusters whose stabilities sum to :math:`\approx 4.5` (a kind of empirical expectation value for the number of _true_ k-means clusters). This range straddles the inital guess range, found from the Elbow and Silhouette plots, that seems to contain the best values of _k_.
 
 Of course, we can always reduce the fuzzy clusters to the most-probable clustering. This is done by using the measure defined by the product of stability and membership to assign each point to the fuzzy cluster that it most-probably a member of. The resultant hard clustering looks like the following for our case...
 
@@ -141,4 +141,4 @@ Of course, we can always reduce the fuzzy clusters to the most-probable clusteri
 
 With this we reduce the results to a very interpretable version stable k-means-like clusters.
 
-Of course this example is contrived in order to demonstrate _how_ FuzzyCat works, as such it is not a particularly motivating case for _why_ it should be used &mdash; for this you should read through to the end of the next section :)
+Of course this example is contrived in order to demonstrate _how_ FuzzyCat works, as such it is not a particularly motivating case for _why_ it should be used -- for this you should read through to the end of the next section :)
