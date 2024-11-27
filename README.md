@@ -1,3 +1,9 @@
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/william-h-oliver/fuzzycat/main/images/readme/FuzzyCat_logo_light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/william-h-oliver/fuzzycat/main/images/readme/FuzzyCat_logo_dark.svg">
+  <img alt="Theme dependent FuzzyCat logo" src="https://raw.githubusercontent.com/william-h-oliver/fuzzycat/main/images/readme/FuzzyCat_logo_light.svg">
+</picture>
+
 # Welcome to FuzzyCat
 
 [![PyPI Version](https://img.shields.io/pypi/v/fuzzycategories.svg)](https://pypi.org/project/fuzzycategories/)
