@@ -59,7 +59,9 @@ This matrix is symmetric and the elements of the main diagonal are trivially equ
 Each of these Jaccard indices are now treated as edge weights that connect each of the input clusters, and with these edges, FuzzyCat then finds all possible _overdensities_ from the Jaccard space of all clusters and clusterings. Unfortunately we can't easily visualise this process as it evolves within FuzzyCat because clusters inhabit a very high dimensional space. Luckily however, the steps taken in this process are nearly identical to the AstroLink aggregation process (described in section 3.4 of the original [science paper](https://doi.org/10.1093/mnras/stae1029) and within its [documentation](https://astrolink.readthedocs.io/en/latest/howitworks.html#compute-an-ordered-list-and-a-binary-tree-of-groups)), and since it is much simpler to visualise a 2-dimensional toy data set that a very high dimensional space of all possible clusters, we can refer to a visualisation of the way this process works within AstroLink to gain insight into how it works within FuzzyCat.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/william-h-oliver/fuzzycat/main/images/howitworks/aggregation_process_example.png" alt="Aggregation process illustration from AstroLink."/>
+  <div style="overflow:hidden;">
+    <img src="https://raw.githubusercontent.com/william-h-oliver/fuzzycat/main/images/howitworks/aggregation_process_example.png" alt="Aggregation process illustration from AstroLink." style="margin: -17% 0px -15% 0px ;" />
+  </div>
 </p>
 
 This visualisation for the AstroLink aggregation process can be thought of as a kind of reduced-dimensionality version of what happens inside FuzzyCat. Without loss of generality for either algorithm...
