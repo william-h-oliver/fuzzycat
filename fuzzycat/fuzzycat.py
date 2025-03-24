@@ -55,6 +55,13 @@ class FuzzyCat:
     minStability : `float`, default = 0.5
         The minimum stability that a fuzzy cluster must have to be included in 
         the final set of fuzzy clusters.
+    windowSize : `int` or `None`, default = None
+        The size of the window that is used to compute the Jaccard index between
+        clusters. If `None`, the Jaccard index is computed between all pairs of
+        clusters in all clusterings. If `windowSize` is an integer, then the 
+        Jaccard index is computed between all clusters within `windowSize`-many 
+        clusterings of one another. The order of the clusters is determined by 
+        the lexographical order of the cluster files in `directoryName`.
     checkpoint : `bool`, default = False
         Whether to save the cluster file names, pairs, and edges arrays to the 
         directory so that less work is needed if FuzzyCat is run again.
@@ -109,7 +116,7 @@ class FuzzyCat:
         `stabilitiesGroups[i]` corresponds to group `i` in `groups`.
     """
 
-    def __init__(self, nSamples, nPoints, directoryName = None, minIntraJaccardIndex = 0.5, maxInterJaccardIndex = 0.5, minStability = 0.5, checkpoint = False, verbose = 0):
+    def __init__(self, nSamples, nPoints, directoryName = None, minIntraJaccardIndex = 0.5, maxInterJaccardIndex = 0.5, minStability = 0.5, windowSize = None, checkpoint = False, verbose = 0):
         check_directoryName = (isinstance(directoryName, str) and directoryName != "" and os.path.exists(directoryName)) or directoryName is None
         assert check_directoryName, "Parameter 'directoryName' must be a string and must exist!"
         if directoryName is None: directoryName = os.getcwd()
@@ -135,6 +142,10 @@ class FuzzyCat:
         check_minStability = issubclass(type(minStability), (int, float, np.integer, np.floating)) and 0 <= minStability <= 1
         assert check_minStability, "Parameter 'minExistenceProbability' must be a float (or integer) in the interval [0, 1]!"
         self.minStability = minStability
+
+        check_windowSize = (isinstance(windowSize, int) and windowSize > 0) or windowSize is None
+        assert check_windowSize, "Parameter 'windowSize' must be a positive integer or None!"
+        self.windowSize = windowSize
 
         check_checkpoint = isinstance(checkpoint, bool)
         assert check_checkpoint, "Parameter 'checkpoint' must be a boolean!"
@@ -204,29 +215,32 @@ class FuzzyCat:
             # Get all cluster files in directory
             self.clusterFileNames = np.array([fileName for fileName in os.listdir(self.directoryName + 'Clusters/') if fileName.endswith('.npy')])
             n_clusters = self.clusterFileNames.size
-            self._pairs, self._edges = self._initGraph(n_clusters)
+            self._pairs, self._edges = self._initGraph(n_clusters, self.windowSize)
 
             # Cycle through all pairs of clusters and compute their similarity
             self.lazyLoader = [False for i in range(n_clusters)]
             self.dataTypes = np.zeros(n_clusters, dtype = np.int8)
+            k = 0
             for i in range(n_clusters):
-                for j in range(i + 1, n_clusters):
+                windowEnd = min(i + self.windowSize + 1, n_clusters) if self.windowSize is not None else n_clusters
+                for j in range(i + 1, windowEnd):
                     # Load clusters
                     cluster_i, dataType_i = self.retrieveCluster(i)
                     cluster_j, dataType_j = self.retrieveCluster(j)
 
                     # Calculate the similarity between clusters i and j
-                    if dataType_i == dataType_j == 1: self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._jaccardIndex_njit(cluster_i, cluster_j, self.nPoints)
+                    if dataType_i == dataType_j == 1: self._edges[k] = self._jaccardIndex_njit(cluster_i, cluster_j, self.nPoints)
                     elif dataType_i == dataType_j:
-                        self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(cluster_i, cluster_j)
+                        self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, cluster_j)
                     else:
                         clusterFloating = np.zeros(self.nPoints)
                         if dataType_i == 1:
                             clusterFloating[cluster_i] = 1
-                            self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(clusterFloating, cluster_j)
+                            self._edges[k] = self._weightedJaccardIndex_njit(clusterFloating, cluster_j)
                         else:
                             clusterFloating[cluster_j] = 1
-                            self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(cluster_i, clusterFloating)
+                            self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, clusterFloating)
+                    k += 1
                         
             # Save arrays
             if self.checkpoint:
@@ -235,7 +249,19 @@ class FuzzyCat:
                 np.save(self.directoryName + 'edges.npy', self._edges)
 
         self._similarityMatrixTime = time.perf_counter() - start
-    
+
+    @staticmethod
+    @njit()
+    def _initGraph(n, windowSize):
+        pairs = [] # Might not need to compute this if i and j can be (efficiently) calculated from knowing the index of [i, j]
+        for i in range(n):
+            windowEnd = min(i + windowSize + 1, n) if windowSize is not None else n
+            for j in range(i + 1, windowEnd):
+                pairs.append([i, j])
+        pairs = np.array(pairs, dtype = np.uint32)
+        edges = np.zeros(pairs.shape[0], dtype = np.float32)
+        return pairs, edges
+
     def retrieveCluster(self, index):
         cluster, dataType = self.lazyLoader[index], self.dataTypes[index]
         if cluster is False:
@@ -246,17 +272,6 @@ class FuzzyCat:
             else: assert False, f"Cluster from file '{fileName}' is of {cluster.dtype.type} data type (must be integer or floating)!"
             self.lazyLoader[index], self.dataTypes[index] = cluster, dataType
         return cluster, dataType
-    
-    @staticmethod
-    @njit()
-    def _initGraph(n):
-        graphSize = n*(n - 1)//2
-        pairs = np.empty((graphSize, 2), dtype = np.uint32) # Might not need to compute this if i and j can be (efficiently) calculated from knowing the index of [i, j]
-        for i in range(n):
-            for j in range(i + 1, n):
-                pairs[i*(2*n - i - 1)//2 + j - i - 1] = [i, j]
-        edges = np.zeros(graphSize, dtype = np.float32)
-        return pairs, edges
 
     @staticmethod
     @njit(fastmath = True)
