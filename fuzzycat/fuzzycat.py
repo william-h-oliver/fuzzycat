@@ -220,6 +220,7 @@ class FuzzyCat:
             # Cycle through all pairs of clusters and compute their similarity
             self.lazyLoader = [False for i in range(n_clusters)]
             self.dataTypes = np.zeros(n_clusters, dtype = np.int8)
+            k = 0
             for i in range(n_clusters):
                 windowEnd = min(i + self.windowSize + 1, n_clusters) if self.windowSize is not None else n_clusters
                 for j in range(i + 1, windowEnd):
@@ -228,17 +229,18 @@ class FuzzyCat:
                     cluster_j, dataType_j = self.retrieveCluster(j)
 
                     # Calculate the similarity between clusters i and j
-                    if dataType_i == dataType_j == 1: self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._jaccardIndex_njit(cluster_i, cluster_j, self.nPoints)
+                    if dataType_i == dataType_j == 1: self._edges[k] = self._jaccardIndex_njit(cluster_i, cluster_j, self.nPoints)
                     elif dataType_i == dataType_j:
-                        self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(cluster_i, cluster_j)
+                        self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, cluster_j)
                     else:
                         clusterFloating = np.zeros(self.nPoints)
                         if dataType_i == 1:
                             clusterFloating[cluster_i] = 1
-                            self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(clusterFloating, cluster_j)
+                            self._edges[k] = self._weightedJaccardIndex_njit(clusterFloating, cluster_j)
                         else:
                             clusterFloating[cluster_j] = 1
-                            self._edges[i*(2*n_clusters - i - 1)//2 + j - i - 1] = self._weightedJaccardIndex_njit(cluster_i, clusterFloating)
+                            self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, clusterFloating)
+                    k += 1
                         
             # Save arrays
             if self.checkpoint:
