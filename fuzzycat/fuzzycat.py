@@ -215,13 +215,13 @@ class FuzzyCat:
             # Get all cluster files in directory
             self.clusterFileNames = np.array([fileName for fileName in os.listdir(self.directoryName + 'Clusters/') if fileName.endswith('.npy')])
             n_clusters = self.clusterFileNames.size
-            self._pairs, self._edges = self._initGraph(n_clusters)
+            self._pairs, self._edges = self._initGraph(n_clusters, self.windowSize)
 
             # Cycle through all pairs of clusters and compute their similarity
             self.lazyLoader = [False for i in range(n_clusters)]
             self.dataTypes = np.zeros(n_clusters, dtype = np.int8)
             for i in range(n_clusters):
-                windowEnd = min(i + self.windowSize + 1, n_clusters)
+                windowEnd = min(i + self.windowSize + 1, n_clusters) if self.windowSize is not None else n_clusters
                 for j in range(i + 1, windowEnd):
                     # Load clusters
                     cluster_i, dataType_i = self.retrieveCluster(i)
@@ -250,13 +250,14 @@ class FuzzyCat:
 
     @staticmethod
     @njit()
-    def _initGraph(n):
-        graphSize = n*(n - 1)//2
-        pairs = np.empty((graphSize, 2), dtype = np.uint32) # Might not need to compute this if i and j can be (efficiently) calculated from knowing the index of [i, j]
+    def _initGraph(n, windowSize):
+        pairs = [] # Might not need to compute this if i and j can be (efficiently) calculated from knowing the index of [i, j]
         for i in range(n):
-            for j in range(i + 1, n):
-                pairs[i*(2*n - i - 1)//2 + j - i - 1] = [i, j]
-        edges = np.zeros(graphSize, dtype = np.float32)
+            windowEnd = min(i + windowSize + 1, n) if windowSize is not None else n
+            for j in range(i + 1, windowEnd):
+                pairs.append([i, j])
+        pairs = np.array(pairs, dtype = np.uint32)
+        edges = np.zeros(pairs.shape[0], dtype = np.float32)
         return pairs, edges
 
     def retrieveCluster(self, index):
