@@ -221,7 +221,8 @@ class FuzzyCat:
             self.lazyLoader = [False for i in range(n_clusters)]
             self.dataTypes = np.zeros(n_clusters, dtype = np.int8)
             for i in range(n_clusters):
-                for j in range(i + 1, n_clusters):
+                windowEnd = min(i + self.windowSize + 1, n_clusters)
+                for j in range(i + 1, windowEnd):
                     # Load clusters
                     cluster_i, dataType_i = self.retrieveCluster(i)
                     cluster_j, dataType_j = self.retrieveCluster(j)
