@@ -67,7 +67,7 @@ def test_fuzzycat():
     del arr
 
     # _initGraph()
-    arr1, arr2 = fc._initGraph.py_func(100)
+    arr1, arr2 = fc._initGraph.py_func(100, None)
     del arr1, arr2
 
     # _jaccardIndex_njit()
