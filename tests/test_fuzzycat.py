@@ -12,6 +12,9 @@ from fuzzycat import FuzzyData
 from fuzzycat import FuzzyPlots
 
 def test_fuzzycat():
+    # Set seed for reproducibility
+    np.random.seed(0)
+
     # Remove any files and directories from tests folder that have not been removed by previous tests
     saveFolder = os.getcwd() + '/Clusters/'
     if os.path.exists(saveFolder):
@@ -29,7 +32,6 @@ def test_fuzzycat():
     covP = sigma*np.tile(np.eye(P.shape[1]).reshape(1, P.shape[1], P.shape[1]), (P.shape[0], 1, 1))
 
     # Resample the data and cluster it
-    np.random.seed(0)
     nSamples = 50
     try:
         alg = 'kmeans'
