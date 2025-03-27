@@ -69,8 +69,9 @@ def test_fuzzycat():
     del arr
 
     # _initGraph()
-    arr1, arr2 = fc._initGraph.py_func(100, None)
-    del arr1, arr2
+    clusteringNumbers = np.array([np.uint32(fileName.split('_')[0]) for fileName in fc.clusterFileNames])
+    arr1, arr2 = fc._initGraph.py_func(100, None, clusteringNumbers)
+    del arr1, arr2, clusteringNumbers
 
     # _jaccardIndex_njit()
     num = fc._jaccardIndex_njit.py_func(np.arange(10), np.arange(5, 20), 20)

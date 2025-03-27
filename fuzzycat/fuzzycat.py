@@ -215,15 +215,15 @@ class FuzzyCat:
             # Get all cluster files in directory
             self.clusterFileNames = np.array([fileName for fileName in os.listdir(self.directoryName + 'Clusters/') if fileName.endswith('.npy')])
             n_clusters = self.clusterFileNames.size
-            self._pairs, self._edges = self._initGraph(n_clusters, self.windowSize)
+            clusteringNumbers = np.array([np.uint32(fileName.split('_')[0]) for fileName in self.clusterFileNames])
+            self._pairs, self._edges = self._initGraph(n_clusters, self.windowSize, clusteringNumbers)
 
             # Cycle through all pairs of clusters and compute their similarity
             self.lazyLoader = [False for i in range(n_clusters)]
             self.dataTypes = np.zeros(n_clusters, dtype = np.int8)
             k = 0
             for i in range(n_clusters):
-                windowEnd = min(i + self.windowSize + 1, n_clusters) if self.windowSize is not None else n_clusters
-                for j in range(i + 1, windowEnd):
+                for j in range(i + 1, n_clusters):
                     # Load clusters
                     cluster_i, dataType_i = self.retrieveCluster(i)
                     cluster_j, dataType_j = self.retrieveCluster(j)
@@ -241,6 +241,9 @@ class FuzzyCat:
                             clusterFloating[cluster_j] = 1
                             self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, clusterFloating)
                     k += 1
+
+                    # Check if the window size has been reached
+                    if self.windowSize is not None and clusteringNumbers[i] + self.windowSize  - 1 < clusteringNumbers[j]: break
                         
             # Save arrays
             if self.checkpoint:
@@ -252,12 +255,12 @@ class FuzzyCat:
 
     @staticmethod
     @njit()
-    def _initGraph(n, windowSize):
+    def _initGraph(n, windowSize, clusteringNumbers):
         pairs = [] # Might not need to compute this if i and j can be (efficiently) calculated from knowing the index of [i, j]
         for i in range(n):
-            windowEnd = min(i + windowSize + 1, n) if windowSize is not None else n
-            for j in range(i + 1, windowEnd):
+            for j in range(i + 1, n):
                 pairs.append([i, j])
+                if windowSize is not None and clusteringNumbers[i] + windowSize  - 1 < clusteringNumbers[j]: break
         pairs = np.array(pairs, dtype = np.uint32)
         edges = np.zeros(pairs.shape[0], dtype = np.float32)
         return pairs, edges
