@@ -224,6 +224,9 @@ class FuzzyCat:
             k = 0
             for i in range(n_clusters):
                 for j in range(i + 1, n_clusters):
+                    # Check if the window size has been reached
+                    if self.windowSize is not None and clusteringNumbers[i] + self.windowSize  - 1 < clusteringNumbers[j]: break
+
                     # Load clusters
                     cluster_i, dataType_i = self.retrieveCluster(i)
                     cluster_j, dataType_j = self.retrieveCluster(j)
@@ -241,9 +244,6 @@ class FuzzyCat:
                             clusterFloating[cluster_j] = 1
                             self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, clusterFloating)
                     k += 1
-
-                    # Check if the window size has been reached
-                    if self.windowSize is not None and clusteringNumbers[i] + self.windowSize  - 1 < clusteringNumbers[j]: break
                         
             # Save arrays
             if self.checkpoint:
@@ -259,8 +259,8 @@ class FuzzyCat:
         pairs = [] # Might not need to compute this if i and j can be (efficiently) calculated from knowing the index of [i, j]
         for i in range(n):
             for j in range(i + 1, n):
-                pairs.append([i, j])
                 if windowSize is not None and clusteringNumbers[i] + windowSize  - 1 < clusteringNumbers[j]: break
+                pairs.append([i, j])
         pairs = np.array(pairs, dtype = np.uint32)
         edges = np.zeros(pairs.shape[0], dtype = np.float32)
         return pairs, edges
