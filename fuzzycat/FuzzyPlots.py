@@ -193,6 +193,17 @@ def plotFuzzyLabelsOnX(fc, X, membersOnly = False, figsize = (8, 8), markerSize 
         colours += stability*membershipArr[:, np.newaxis]*colsArr[i%10]
     if not membersOnly: colours[:, -1] = 1
 
+    # Check out of bound RGB values
+    tol = 1e-8
+    outOfRange = (colours < -tol) | (colours > 1 + tol)
+    if np.any(outOfRange):
+        raise ValueError(
+            f"Colour values outside [0, 1] by more than tolerance {tol}; "
+            "this looks like a real error, not floating-point noise."
+        )
+
+    colours = np.clip(colours, 0, 1)
+
     # Plot the data points
     ax.scatter(*X.T, s = markerSize, facecolor = colours, edgecolor = 'none', zorder = 1)
 
