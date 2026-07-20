@@ -203,7 +203,7 @@ class FuzzyCat:
         clstFileNamesFileBool = os.path.exists(self.directoryName + 'clusterFileNames.npy')
         pairsFileBool = os.path.exists(self.directoryName + 'pairs.npy')
         edgesFileBool = os.path.exists(self.directoryName + 'edges.npy')
-        
+
         # If so, load them, otherwise, compute them
         if clstFileNamesFileBool and pairsFileBool and edgesFileBool:
             self.clusterFileNames = np.load(self.directoryName + 'clusterFileNames.npy')
@@ -212,6 +212,10 @@ class FuzzyCat:
             self.lazyLoader = [False for i in range(self.clusterFileNames.size)]
             self.dataTypes = np.zeros(self.clusterFileNames.size, dtype = np.int8)
         else:
+            # allocate helper arrays
+            helpCounter = np.zeros(self.nPoints, dtype = np.bool_)
+            clusterFloating = np.zeros(self.nPoints, dtype = np.float32)
+
             # Get all cluster files in directory
             self.clusterFileNames = np.array([fileName for fileName in os.listdir(self.directoryName + 'Clusters/') if fileName.endswith('.npy')])
             n_clusters = self.clusterFileNames.size
@@ -223,20 +227,26 @@ class FuzzyCat:
             self.dataTypes = np.zeros(n_clusters, dtype = np.int8)
             k = 0
             for i in range(n_clusters):
+                # Load first cluster and set help counter
+                cluster_i, dataType_i = self.retrieveCluster(i)
+                if dataType_i == 1:
+                    helpCounter.fill(0)
+                    helpCounter[cluster_i] = True
+
                 for j in range(i + 1, n_clusters):
                     # Check if the window size has been reached
                     if self.windowSize is not None and clusteringNumbers[i] + self.windowSize  - 1 < clusteringNumbers[j]: break
 
-                    # Load clusters
-                    cluster_i, dataType_i = self.retrieveCluster(i)
+                    # Load second cluster
                     cluster_j, dataType_j = self.retrieveCluster(j)
 
                     # Calculate the similarity between clusters i and j
-                    if dataType_i == dataType_j == 1: self._edges[k] = self._jaccardIndex_njit(cluster_i, cluster_j, self.nPoints)
+                    if dataType_i == dataType_j == 1:
+                        self._edges[k] = self._jaccardIndex_njit(cluster_i.size, cluster_j, helpCounter)
                     elif dataType_i == dataType_j:
                         self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, cluster_j)
                     else:
-                        clusterFloating = np.zeros(self.nPoints)
+                        clusterFloating.fill(0)
                         if dataType_i == 1:
                             clusterFloating[cluster_i] = 1
                             self._edges[k] = self._weightedJaccardIndex_njit(clusterFloating, cluster_j)
@@ -277,12 +287,13 @@ class FuzzyCat:
         return cluster, dataType
 
     @staticmethod
-    @njit(fastmath = True)
-    def _jaccardIndex_njit(c1, c2, nPoints):
-        counts_c1 = np.zeros(nPoints, dtype = np.bool_)
-        counts_c1[c1] = 1
-        intersection = counts_c1[c2].sum()
-        return intersection/(c1.size + c2.size - intersection)
+    @njit(fastmath = True, inline = 'always')
+    def _jaccardIndex_njit(c1_size, c2, counts_c1):
+        intersection: int = 0
+        for i in range(c2.size):
+            if counts_c1[c2[i]]:
+                intersection += 1
+        return intersection/(c1_size + c2.size - intersection)
     
     @staticmethod
     @njit(fastmath = True)
