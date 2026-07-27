@@ -225,7 +225,7 @@ class FuzzyCat:
             for i in range(n_clusters):
                 for j in range(i + 1, n_clusters):
                     # Check if the window size has been reached
-                    if self.windowSize is not None and clusteringNumbers[i] + self.windowSize  - 1 < clusteringNumbers[j]: break
+                    if self.windowSize is not None and clusteringNumbers[i] + self.windowSize  - 1 < clusteringNumbers[j]: continue
 
                     # Load clusters
                     cluster_i, dataType_i = self.retrieveCluster(i)
@@ -259,7 +259,7 @@ class FuzzyCat:
         pairs = [] # Might not need to compute this if i and j can be (efficiently) calculated from knowing the index of [i, j]
         for i in range(n):
             for j in range(i + 1, n):
-                if windowSize is not None and clusteringNumbers[i] + windowSize  - 1 < clusteringNumbers[j]: break
+                if windowSize is not None and clusteringNumbers[i] + windowSize  - 1 < clusteringNumbers[j]: continue
                 pairs.append([i, j])
         pairs = np.array(pairs, dtype = np.uint32)
         edges = np.zeros(pairs.shape[0], dtype = np.float32)
