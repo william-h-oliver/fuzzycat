@@ -13,7 +13,9 @@ import time
 
 # Third-party libraries
 import numpy as np
+import numba
 from numba import njit
+import pynndescent
 
 class FuzzyCat:
     """A class to represent the FuzzyCat algorithm.
@@ -158,12 +160,17 @@ class FuzzyCat:
             if returnLine: print(f"FuzzyCat: {message}\r", end = '')
             else: print(f"FuzzyCat: {message}")
     
-    def run(self):
+    def run(self, usePynndescent: bool = False):
         """Runs the FuzzyCat algorithm and produces fuzzy clusters from a 
         directory containing a folder, 'Cluster/', with existing cluster files.
 
         This method runs `computeSimilarities()`, `aggregate()`, and
         `extractFuzzyClusters()`.
+
+        Parameters
+        ----------
+        usePynndescent : `bool`
+            Whether pynndescent should be used to speed up graph contruction.
         """
 
         assert os.path.exists(self.directoryName + 'Clusters/'), f"Directory {self.directoryName + 'Clusters/'} does not exist!"
@@ -171,7 +178,7 @@ class FuzzyCat:
         begin = time.perf_counter()
 
         # Phase 1
-        self.computeSimilarities()
+        self.computeSimilarities(usePynndescent)
 
         # Phase 2
         self.aggregate()
@@ -186,7 +193,7 @@ class FuzzyCat:
             self._printFunction(f"Extraction time    | {100*self._extractFuzzyClustersTime/self._totalTime:.2f}%    ", returnLine = False)
         self._printFunction(f"Completed          | {time.strftime('%Y-%m-%d %H:%M:%S')}       ", returnLine = False)
 
-    def computeSimilarities(self):
+    def computeSimilarities(self, usePynndescent: bool):
         """Computes the similarities between all pairs of clusters in the
         chosen directory.
 
@@ -194,6 +201,11 @@ class FuzzyCat:
         'Clusters/' that contains the cluster files.
 
         This method generates the `_pairs` and `_edges` attributes.
+
+        Parameters
+        ----------
+        usePynndescent : `bool`
+            Whether pynndescent should be used to speed up graph contruction.
         """
 
         if self.verbose > 1: self._printFunction('Computing similarities...        ')
@@ -218,32 +230,77 @@ class FuzzyCat:
             clusteringNumbers = np.array([np.uint32(fileName.split('_')[0]) for fileName in self.clusterFileNames])
             self._pairs, self._edges = self._initGraph(n_clusters, self.windowSize, clusteringNumbers)
 
-            # Cycle through all pairs of clusters and compute their similarity
             self.lazyLoader = [False for i in range(n_clusters)]
             self.dataTypes = np.zeros(n_clusters, dtype = np.int8)
-            k = 0
-            for i in range(n_clusters):
-                for j in range(i + 1, n_clusters):
-                    # Check if the window size has been reached
-                    if self.windowSize is not None and clusteringNumbers[i] + self.windowSize  - 1 < clusteringNumbers[j]: break
 
-                    # Load clusters
+            if usePynndescent:
+                # TODO: add window (maybe useless in this case)
+                # TODO: add fuzzy input clusters option
+
+                # TODO: this might not be feasible for large datasets
+                # Fetch all clusters and prepare bit matrix for pynndescent
+                clustersMatrixBytes = (self.nPoints + 7) // 8
+                clustersMatrix = np.zeros((n_clusters, clustersMatrixBytes), dtype=np.uint8)
+
+                for i in range(n_clusters):
                     cluster_i, dataType_i = self.retrieveCluster(i)
-                    cluster_j, dataType_j = self.retrieveCluster(j)
+                    if dataType_i != 1:
+                        self._printFunction(f"Cluster is not of type integer: currently, only integer clusters are allowed with PyNNDescent.")
+                    for col in cluster_i:
+                        byteIdx = col // 8
+                        bitIdx = 7 - (col % 8)
+                        clustersMatrix[i, byteIdx] |= 1 << bitIdx
 
-                    # Calculate the similarity between clusters i and j
-                    if dataType_i == dataType_j == 1: self._edges[k] = self._jaccardIndex_njit(cluster_i, cluster_j, self.nPoints)
-                    elif dataType_i == dataType_j:
-                        self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, cluster_j)
-                    else:
-                        clusterFloating = np.zeros(self.nPoints)
-                        if dataType_i == 1:
-                            clusterFloating[cluster_i] = 1
-                            self._edges[k] = self._weightedJaccardIndex_njit(clusterFloating, cluster_j)
+                # Build KNN graph
+                KNNGraph = pynndescent.NNDescent(
+                    clustersMatrix,
+                    metric=self._bitJaccard_njit,
+                    bit_metric=True,
+                    angular_trees=True,
+                    n_neighbors=30,
+                )
+
+                neighborIndices, neighborDistances = KNNGraph.neighbor_graph
+
+                # Store computed indexes (if a non-zero weight has been assigned
+                # to any of the two edge directions, pick that)
+                for clusterId in range(n_clusters):
+                    for i, neighborId in enumerate(neighborIndices[clusterId]):
+                        if clusterId == neighborId:
+                            continue
+
+                        u, v = min(clusterId, neighborId), max(clusterId, neighborId)
+
+                        idx = u * n_clusters - (u * (u + 1)) // 2 + (v - u - 1)
+                        sim = 1.0 - neighborDistances[clusterId][i]
+
+                        if sim > self._edges[idx]:
+                            self._edges[idx] = sim
+            else:
+                # Cycle through all pairs of clusters and compute their similarity
+                k = 0
+                for i in range(n_clusters):
+                    for j in range(i + 1, n_clusters):
+                        # Check if the window size has been reached
+                        if self.windowSize is not None and clusteringNumbers[i] + self.windowSize  - 1 < clusteringNumbers[j]: break
+
+                        # Load clusters
+                        cluster_i, dataType_i = self.retrieveCluster(i)
+                        cluster_j, dataType_j = self.retrieveCluster(j)
+
+                        # Calculate the similarity between clusters i and j
+                        if dataType_i == dataType_j == 1: self._edges[k] = self._jaccardIndex_njit(cluster_i, cluster_j, self.nPoints)
+                        elif dataType_i == dataType_j:
+                            self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, cluster_j)
                         else:
-                            clusterFloating[cluster_j] = 1
-                            self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, clusterFloating)
-                    k += 1
+                            clusterFloating = np.zeros(self.nPoints)
+                            if dataType_i == 1:
+                                clusterFloating[cluster_i] = 1
+                                self._edges[k] = self._weightedJaccardIndex_njit(clusterFloating, cluster_j)
+                            else:
+                                clusterFloating[cluster_j] = 1
+                                self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, clusterFloating)
+                        k += 1
                         
             # Save arrays
             if self.checkpoint:
@@ -252,6 +309,13 @@ class FuzzyCat:
                 np.save(self.directoryName + 'edges.npy', self._edges)
 
         self._similarityMatrixTime = time.perf_counter() - start
+
+        # TODO: remove (only for debugging)
+        print(f"Time for similarity matrix: {self._similarityMatrixTime}")
+
+        # TODO: remove (only for debugging)
+        with open("edges.txt", "w") as f:
+            np.savetxt(f, self._edges, fmt="%.3f")
 
     @staticmethod
     @njit()
@@ -275,6 +339,45 @@ class FuzzyCat:
             else: assert False, f"Cluster from file '{fileName}' is of {cluster.dtype.type} data type (must be integer or floating)!"
             self.lazyLoader[index], self.dataTypes[index] = cluster, dataType
         return cluster, dataType
+
+    @staticmethod
+    @njit(
+        [
+            "f4(u1[::1],u1[::1])",
+            numba.types.float32(
+                numba.types.Array(numba.types.uint8, 1, "C", readonly=True),
+                numba.types.Array(numba.types.uint8, 1, "C", readonly=True),
+            ),
+        ],
+        fastmath=True,
+        nogil=True,
+        boundscheck=False,
+        locals={
+            "numEqual": numba.types.int32,
+            "numNonZero": numba.types.int32,
+            "and_": numba.types.uint8,
+            "or_": numba.types.uint8,
+            "dim": numba.types.intp,
+            "i": numba.types.uint16,
+        },
+    )
+    def _bitJaccard_njit(x, y):
+        r"""
+        """
+        numEqual = 0
+        numNonZero = 0
+        dim = x.shape[0]
+
+        for i in range(dim):
+            and_ = x[i] & y[i]
+            or_ = x[i] | y[i]
+            numEqual += pynndescent.distances.popcnt_u8(and_)
+            numNonZero += pynndescent.distances.popcnt_u8(or_)
+
+        if numNonZero == 0:
+            return 0.0
+        else:
+            return float(numNonZero - numEqual) / numNonZero
 
     @staticmethod
     @njit(fastmath = True)
